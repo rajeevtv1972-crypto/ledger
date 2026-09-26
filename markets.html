@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#06101d">
+<meta name="description" content="Ledger live crypto and forex markets powered by TradingView data widgets.">
+<title>Ledger — Live Crypto & Forex Markets</title>
+<style>
+:root{--bg:#06101d;--panel:#0b1b2d;--line:#1d3850;--text:#f6fafc;--muted:#93a7ba;--accent:#31d7a3}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 0%,rgba(49,215,163,.1),transparent 30%),#06101d;color:var(--text);font-family:Inter,system-ui,sans-serif}
+header{padding:44px 5vw 34px;border-bottom:1px solid rgba(255,255,255,.07);background:#081625}.top{max-width:1280px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:20px}.brand{display:flex;align-items:center;gap:11px;color:var(--text);text-decoration:none;font-size:22px;font-weight:900}.logo{width:40px;height:40px;border-radius:13px;background:var(--accent);color:#06111b;display:grid;place-items:center;font-weight:950}.nav{display:flex;gap:18px;font-size:13px}.nav a{color:#b8c8d8;text-decoration:none}.nav a:hover{color:var(--accent)}
+main{max-width:1280px;margin:0 auto;padding:42px 5vw 75px}.eyebrow{color:#78e2c3;font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-weight:900}.hero h1{font-size:clamp(38px,5vw,64px);line-height:1;letter-spacing:-.055em;margin:10px 0}.hero p{max-width:760px;color:var(--muted);line-height:1.65;margin:0}.note{margin-top:17px;padding:13px 15px;border:1px solid #23445c;border-radius:13px;background:#091827;color:#8ea4b9;font-size:12px;line-height:1.5}.note a{color:#a8ead7}
+.panel{margin-top:25px;border:1px solid var(--line);border-radius:22px;background:#091827;overflow:hidden}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:19px 20px;border-bottom:1px solid rgba(255,255,255,.07)}.panel-head h2{margin:0;font-size:19px}.panel-head span{font-size:11px;color:#7f96aa}.widget{min-height:510px;background:#07121f}
+footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:center;color:#71859a;font-size:12px;background:#02070f}footer a{color:#b9eede;text-decoration:none;margin:0 8px}
+@media(max-width:700px){header{padding:28px 18px}.top{align-items:flex-start}.nav{gap:10px;flex-wrap:wrap;justify-content:flex-end}main{padding:30px 18px 55px}.widget{min-height:430px}.panel-head{align-items:flex-start;flex-direction:column}}
+</style>
+<script type="module" src="https://widgets.tradingview-widget.com/w/en/tv-crypto-coins-heatmap.js"></script>
+<script type="module" src="https://widgets.tradingview-widget.com/w/en/tv-forex-cross-rates.js"></script>
+</head>
+<body>
+<header>
+<div class="top">
+<a class="brand" href="/"><div class="logo">L</div><span>Ledger</span></a>
+<nav class="nav"><a href="/">Home</a><a href="/portfolio.html">Portfolio</a><a href="/about.html">About</a><a href="/contact.html">Contact</a></nav>
+</div>
+</header>
+<main>
+<section class="hero">
+<div class="eyebrow">Live market centre</div>
+<h1>Crypto & Forex, in real time.</h1>
+<p>Explore a broad view of cryptocurrencies and currency crosses with TradingView market widgets. Crypto and forex widget data is provided in real time where TradingView has the data rights to display it.</p>
+<div class="note">TradingView does not provide a public market-data API for websites. These official widgets are used instead, so Ledger can show current TradingView-provided market data without pretending to offer unsupported access. <a href="https://www.tradingview.com/widget-docs/faq/data/">Learn more</a></div>
+</section>
+
+<section class="panel">
+<div class="panel-head"><h2>₿ Crypto market — separate coins</h2><span>Live crypto overview</span></div>
+<div class="widget">
+<tv-crypto-coins-heatmap></tv-crypto-coins-heatmap>
+</div>
+</section>
+
+<section class="panel">
+<div class="panel-head"><h2>Forex market — currency pairs</h2><span>Live cross rates</span></div>
+<div class="widget">
+<tv-forex-cross-rates></tv-forex-cross-rates>
+</div>
+</section>
+</main>
+<footer>© 2026 Ledger. All rights reserved.<br><br><a href="/">Home</a><a href="/portfolio.html">Portfolio</a><a href="/about.html">About Us</a><a href="/contact.html">Contact Us</a><a href="/privacy-policy.html">Privacy Policy</a></footer>
+</body>
+</html>
