@@ -11,7 +11,7 @@
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 15%,rgba(49,215,163,.14),transparent 32%),radial-gradient(circle at 85% 75%,rgba(49,125,215,.12),transparent 28%),linear-gradient(180deg,#06101d,#081523 55%,#06101d);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .top{height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 6vw;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(6,16,29,.55);backdrop-filter:blur(16px);position:sticky;top:0;z-index:20}
 .brand{display:flex;align-items:center;gap:12px;font-weight:900;font-size:22px;letter-spacing:-.03em}.logo{width:42px;height:42px;border-radius:14px;background:var(--accent);color:#06111b;display:grid;place-items:center;font-weight:950;box-shadow:0 12px 35px rgba(49,215,163,.18)}
-.nav{color:#91a4b9;font-size:13px}
+.nav{color:#91a4b9;font-size:13px}.nav a{color:#b9c9d9;text-decoration:none;margin:0 4px}.nav a:hover{color:#31d7a3}
 .hero{max-width:1180px;margin:0 auto;padding:88px 6vw 72px;display:grid;grid-template-columns:1.08fr .92fr;gap:65px;align-items:center}
 .badge{display:inline-flex;align-items:center;gap:8px;border:1px solid #22485a;background:rgba(12,33,48,.72);color:#8ee5cc;padding:8px 12px;border-radius:999px;font-size:11px;font-weight:850;letter-spacing:.05em}.dot{width:7px;height:7px;border-radius:999px;background:var(--accent);box-shadow:0 0 14px rgba(49,215,163,.75)}
 h1{font-size:clamp(48px,7vw,84px);line-height:.94;letter-spacing:-.065em;margin:20px 0 22px;max-width:700px}h1 span{color:var(--accent)}
@@ -28,7 +28,7 @@ h1{font-size:clamp(48px,7vw,84px);line-height:.94;letter-spacing:-.065em;margin:
 <body>
 <header class="top">
   <a href="/" class="brand" style="color:inherit;text-decoration:none"><div class="logo">L</div><span>Ledger</span></a>
-  <div class="nav">Crypto portfolio tracking • Live prices</div>
+  <div class="nav"><a href="about.html">About</a> · <a href="contact.html">Contact</a> · <a href="privacy-policy.html">Privacy</a></div>
 </header>
 
 <main>
