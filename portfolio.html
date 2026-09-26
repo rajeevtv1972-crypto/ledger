@@ -12,7 +12,7 @@
 button,input,select{font:inherit}button{cursor:pointer}
 .top{position:sticky;top:0;z-index:10;height:72px;border-bottom:1px solid rgba(255,255,255,.07);background:rgba(6,16,29,.86);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:space-between;padding:0 4.5vw}
 .brand{display:flex;align-items:center;gap:12px;font-weight:900;font-size:22px;letter-spacing:-.03em}.logo{width:40px;height:40px;border-radius:13px;background:var(--accent);color:#06111b;display:grid;place-items:center;font-weight:950;box-shadow:0 10px 35px rgba(49,215,163,.16)}
-.local-pill{border:1px solid #23445b;background:#0b1a2b;color:#9ee8d2;padding:8px 11px;border-radius:999px;font-size:11px;font-weight:800}
+
 .main{max-width:1240px;margin:0 auto;padding:42px 4.5vw 80px}.hero{display:flex;justify-content:space-between;align-items:end;gap:20px}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#6fe4c1;font-weight:850}.hero h1{font-size:clamp(36px,5vw,66px);line-height:.98;letter-spacing:-.055em;margin:9px 0 12px}.hero p{margin:0;color:var(--muted);max-width:720px;line-height:1.6}
 .actions{display:flex;gap:10px;flex-wrap:wrap}.primary,.secondary{border-radius:12px;padding:12px 16px;font-weight:850}.primary{border:0;background:var(--accent);color:#06111b}.primary:hover{background:var(--accent2)}.secondary{border:1px solid #29445c;background:#0b1a2c;color:#dfe8f1}.secondary:hover{background:#0e2237}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:30px}.card{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(13,32,52,.92),rgba(9,24,40,.96));padding:22px;box-shadow:var(--shadow)}.label{color:#8195aa;font-size:12px}.value{margin-top:8px;font-size:30px;font-weight:900;letter-spacing:-.03em}.sub{margin-top:5px;font-size:11px;color:#687d94}
@@ -27,7 +27,7 @@ button,input,select{font:inherit}button{cursor:pointer}
 <body>
 <header class="top">
   <div class="brand"><div class="logo">L</div><span>Ledger</span></div>
-  <div class="local-pill">LOCAL ONLY • NO ACCOUNT</div>
+  
 </header>
 
 <main class="main">
@@ -35,7 +35,7 @@ button,input,select{font:inherit}button{cursor:pointer}
     <div>
       <div class="eyebrow">Private crypto portfolio</div>
       <h1>Your portfolio. Your browser. Your control.</h1>
-      <p>Ledger stores your holdings only in this browser using local storage. Market prices are fetched online so your portfolio value and profit/loss stay current.</p>
+      <p>Ledger helps you track your holdings, portfolio value and profit/loss while keeping market prices refreshed online.</p>
     </div>
     <div class="actions">
       <button class="primary" id="addBtn">+ Add holding</button>
@@ -60,11 +60,11 @@ button,input,select{font:inherit}button{cursor:pointer}
         <thead><tr><th>Asset</th><th>Amount</th><th>Avg. buy price</th><th>Current price</th><th>Value</th><th>P/L</th><th></th></tr></thead>
         <tbody id="holdingsBody"></tbody>
       </table>
-      <div class="empty" id="emptyState"><strong>Your local portfolio is empty.</strong>Add BTC, ETH, SOL or another supported asset. Nothing is uploaded to Ledger's servers.</div>
+      <div class="empty" id="emptyState"><strong>Your local portfolio is empty.</strong>Add BTC, ETH, SOL or another supported asset. </div>
     </div>
   </section>
 
-  <div class="footer-note">Your holdings stay in this browser. Clearing site data, changing browsers/devices, or using private browsing can remove your local portfolio. Online data is used only to retrieve current market prices.</div>
+  <div class="footer-note">Your portfolio data is stored in your browser, while online market data is used to keep crypto prices current.</div>
 </main>
 
 <div class="modal-backdrop" id="modal">
