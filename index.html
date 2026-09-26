@@ -4,114 +4,195 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07111f">
-<meta name="description" content="Ledger — secure crypto portfolio tracking">
-<title>Ledger — Sign in</title>
+<meta name="description" content="Ledger — a private, local-first crypto portfolio tracker.">
+<title>Ledger — Local Crypto Portfolio</title>
 <style>
-:root{--bg:#06101d;--panel:#0b192b;--panel2:#0f2238;--line:rgba(255,255,255,.1);--text:#f7fafc;--muted:#94a6bb;--accent:#31d7a3;--accent2:#25bd91;--danger:#ff7b8f}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
-body{min-height:100vh}button,input{font:inherit}.page{min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr}
-.brand{position:relative;display:flex;align-items:center;padding:70px 8vw;background:radial-gradient(circle at 20% 20%,#183e62 0,transparent 42%),radial-gradient(circle at 80% 80%,#123e38 0,transparent 35%),linear-gradient(145deg,#071321,#081522 55%,#07111d);overflow:hidden}
-.brand:before,.brand:after{content:"";position:absolute;border-radius:999px;border:1px solid rgba(49,215,163,.12)}.brand:before{width:520px;height:520px;left:-230px;top:-190px}.brand:after{width:440px;height:440px;right:-230px;bottom:-220px}
-.brand-inner{position:relative;z-index:2;max-width:560px}.logo{width:72px;height:72px;border-radius:22px;background:var(--accent);color:#06111b;display:grid;place-items:center;font-size:38px;font-weight:900;box-shadow:0 18px 45px rgba(49,215,163,.18);margin-bottom:28px}
-.eyebrow{color:#7de7c6;font-size:13px;letter-spacing:.16em;text-transform:uppercase;font-weight:800}.brand h1{font-size:clamp(50px,7vw,88px);line-height:.98;letter-spacing:-.055em;margin:12px 0 20px}.brand p{font-size:19px;line-height:1.7;color:#a7b6c8;max-width:520px;margin:0}
-.features{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:36px}.feature{padding:15px;border-radius:16px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}.feature strong{display:block;font-size:14px}.feature span{display:block;margin-top:5px;color:#7f91a7;font-size:12px}
-.auth-side{display:grid;place-items:center;padding:40px 28px;background:#081321}.auth{width:min(440px,100%);padding:34px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,rgba(15,34,56,.96),rgba(10,25,43,.98));box-shadow:0 24px 80px rgba(0,0,0,.32)}
-.switcher{display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:13px;background:#081523;margin-bottom:28px}.switcher button{border:0;background:transparent;color:#8192a7;padding:11px;border-radius:10px;cursor:pointer;font-weight:750}.switcher button.active{background:#17314b;color:#f4f8fb}
-.auth h2{font-size:30px;letter-spacing:-.03em;margin:0 0 8px}.auth .intro{color:var(--muted);font-size:14px;margin:0 0 24px;line-height:1.5}
-.field{margin-bottom:16px}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:8px;color:#ced7e3}.field input{width:100%;border:1px solid #294158;background:#071522;color:#fff;border-radius:12px;padding:13px 14px;outline:none;transition:.2s}.field input:focus{border-color:#31d7a3;box-shadow:0 0 0 3px rgba(49,215,163,.1)}
-.password-row{position:relative}.password-row input{padding-right:70px}.show{position:absolute;right:10px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#8ea0b5;cursor:pointer;font-size:12px;font-weight:700}
-.row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:2px 0 19px;color:#8495aa;font-size:12px}.check{display:flex;align-items:center;gap:8px;cursor:pointer}.check input{accent-color:var(--accent)}
-.link{border:0;background:transparent;color:#73e4c4;cursor:pointer;padding:0}.primary{width:100%;border:0;border-radius:12px;padding:14px;background:var(--accent);color:#06111b;font-weight:900;cursor:pointer;transition:.18s}.primary:hover{background:var(--accent2);transform:translateY(-1px)}
-.divider{display:flex;align-items:center;gap:10px;color:#66788e;font-size:11px;margin:22px 0}.divider:before,.divider:after{content:"";height:1px;background:rgba(255,255,255,.09);flex:1}
-.alt{width:100%;border:1px solid #2a4158;background:#0b1a2d;color:#e9eef5;border-radius:12px;padding:12px;cursor:pointer;font-weight:700}.google-wrap{width:100%;display:grid;gap:8px}.google-wrap>div{display:flex;justify-content:center;min-height:44px}.google-note{margin:0;text-align:center;color:#66788e;font-size:11px;line-height:1.4}.small{margin-top:20px;text-align:center;color:#64768c;font-size:11px;line-height:1.5}
-.message{min-height:18px;margin:12px 0 0;text-align:center;font-size:12px;color:#8ce9cf}.message.error{color:var(--danger)}.signup-extra{display:none}.signup-extra.signup-visible{display:block}
-@media(max-width:900px){.page{grid-template-columns:1fr}.brand{display:none}.auth-side{min-height:100vh;padding:22px}.auth{padding:28px 22px}}
+:root{--bg:#06101d;--panel:#0a1829;--panel2:#0d2034;--line:#1b344b;--text:#f6fafc;--muted:#8fa3b8;--accent:#31d7a3;--accent2:#22bc90;--red:#ff7b8f;--shadow:0 24px 80px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% 0%,rgba(49,215,163,.08),transparent 30%),linear-gradient(180deg,#06101d,#071321 55%,#06101d);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select{font:inherit}button{cursor:pointer}
+.top{position:sticky;top:0;z-index:10;height:72px;border-bottom:1px solid rgba(255,255,255,.07);background:rgba(6,16,29,.86);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:space-between;padding:0 4.5vw}
+.brand{display:flex;align-items:center;gap:12px;font-weight:900;font-size:22px;letter-spacing:-.03em}.logo{width:40px;height:40px;border-radius:13px;background:var(--accent);color:#06111b;display:grid;place-items:center;font-weight:950;box-shadow:0 10px 35px rgba(49,215,163,.16)}
+.local-pill{border:1px solid #23445b;background:#0b1a2b;color:#9ee8d2;padding:8px 11px;border-radius:999px;font-size:11px;font-weight:800}
+.main{max-width:1240px;margin:0 auto;padding:42px 4.5vw 80px}.hero{display:flex;justify-content:space-between;align-items:end;gap:20px}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#6fe4c1;font-weight:850}.hero h1{font-size:clamp(36px,5vw,66px);line-height:.98;letter-spacing:-.055em;margin:9px 0 12px}.hero p{margin:0;color:var(--muted);max-width:720px;line-height:1.6}
+.actions{display:flex;gap:10px;flex-wrap:wrap}.primary,.secondary{border-radius:12px;padding:12px 16px;font-weight:850}.primary{border:0;background:var(--accent);color:#06111b}.primary:hover{background:var(--accent2)}.secondary{border:1px solid #29445c;background:#0b1a2c;color:#dfe8f1}.secondary:hover{background:#0e2237}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:30px}.card{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(13,32,52,.92),rgba(9,24,40,.96));padding:22px;box-shadow:var(--shadow)}.label{color:#8195aa;font-size:12px}.value{margin-top:8px;font-size:30px;font-weight:900;letter-spacing:-.03em}.sub{margin-top:5px;font-size:11px;color:#687d94}
+.section{margin-top:22px;border:1px solid var(--line);border-radius:22px;overflow:hidden;background:rgba(8,22,37,.88)}.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.07)}.section-head h2{font-size:18px;margin:0}.status{font-size:11px;color:#83e1c6}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:780px}.table th,.table td{padding:15px 18px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06)}.table th{color:#6f8298;font-size:10px;text-transform:uppercase;letter-spacing:.08em}.table td{font-size:13px}.asset{display:flex;align-items:center;gap:11px}.coin{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:#132a42;font-size:12px;font-weight:900;color:#9fe8d4}.asset-name{font-weight:850}.asset-symbol{font-size:11px;color:#6f8398;margin-top:2px;text-transform:uppercase}.positive{color:var(--accent)}.negative{color:var(--red)}.muted{color:#71859a}.empty{padding:52px 20px;text-align:center;color:#74899e}.empty strong{display:block;color:#dbe7f0;font-size:17px;margin-bottom:8px}
+.footer-note{margin-top:18px;color:#62768c;text-align:center;font-size:11px;line-height:1.5}
+.modal-backdrop{position:fixed;inset:0;z-index:30;background:rgba(2,8,15,.72);display:none;place-items:center;padding:22px}.modal-backdrop.open{display:grid}.modal{width:min(520px,100%);border:1px solid #29455d;border-radius:22px;background:#0b1c2f;box-shadow:0 30px 100px rgba(0,0,0,.48);padding:24px}.modal-head{display:flex;justify-content:space-between;align-items:center}.modal h3{margin:0;font-size:22px}.close{border:0;background:transparent;color:#8599ae;font-size:25px}.field{margin-top:16px}.field label{display:block;font-size:12px;font-weight:800;color:#ced9e4;margin-bottom:8px}.field input,.field select{width:100%;padding:12px 13px;border:1px solid #294158;background:#071522;color:#fff;border-radius:12px;outline:none}.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(49,215,163,.1)}.hint{font-size:10px;color:#6f8397;margin-top:6px}.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+.toast{position:fixed;right:20px;bottom:20px;z-index:50;padding:12px 15px;border-radius:12px;border:1px solid #29445c;background:#0b1b2e;color:#e9f1f6;box-shadow:0 20px 50px rgba(0,0,0,.35);font-size:12px;display:none}.toast.show{display:block}.toast.error{border-color:#6b3040;color:#ffc4cc}
+@media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}.hero{display:block}.actions{margin-top:18px}}
+@media(max-width:620px){.top{padding:0 18px}.local-pill{display:none}.main{padding:30px 18px 60px}.grid{grid-template-columns:1fr}.card{padding:19px}.section-head{align-items:flex-start;flex-direction:column}.primary,.secondary{width:100%}.actions{display:grid;grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<main class="page">
-<section class="brand"><div class="brand-inner"><div class="logo">L</div><div class="eyebrow">Crypto portfolio tracker</div><h1>Know where your crypto stands.</h1><p>Ledger gives you one clean place to follow your holdings, track performance and keep your portfolio organized.</p><div class="features"><div class="feature"><strong>Portfolio</strong><span>Track your holdings</span></div><div class="feature"><strong>Markets</strong><span>Watch crypto prices</span></div><div class="feature"><strong>Insights</strong><span>See your P&amp;L</span></div></div></div></section>
-<section class="auth-side"><div class="auth">
-<div class="switcher"><button id="signinTab" class="active" type="button">Sign in</button><button id="signupTab" type="button">Create account</button></div>
-<h2 id="title">Welcome back</h2><p class="intro" id="intro">Sign in to open your Ledger portfolio dashboard.</p>
-<form id="authForm">
-<div class="field signup-extra" id="nameField"><label for="name">Full name</label><input id="name" type="text" autocomplete="name" placeholder="Your name"></div>
-<div class="field"><label for="email">Email address</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required></div>
-<div class="field"><label for="password">Password</label><div class="password-row"><input id="password" type="password" autocomplete="current-password" placeholder="Enter your password" minlength="8" required><button class="show" id="showPassword" type="button">Show</button></div></div>
-<div class="field signup-extra" id="confirmField"><label for="confirm">Confirm password</label><input id="confirm" type="password" autocomplete="new-password" placeholder="Repeat your password" minlength="8"></div>
-<div class="row" id="signinOptions"><label class="check"><input type="checkbox"> Remember me</label><button class="link" type="button" id="forgot">Forgot password?</button></div>
-<button class="primary" id="submit" type="submit">Sign in to Ledger</button></form>
-<div class="divider">OR</div><div class="google-wrap"><div id="googleButton"></div><p class="google-note">New users can create their Ledger account instantly with Google.</p></div>
-<div class="message" id="message"></div><div class="small">Secure authentication powered by your private Ledger database. Google authentication is handled through Google Identity Services.</div>
-</div></section>
-</main>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script>
-const signinTab=document.getElementById("signinTab"),signupTab=document.getElementById("signupTab"),title=document.getElementById("title"),intro=document.getElementById("intro"),submit=document.getElementById("submit"),form=document.getElementById("authForm"),message=document.getElementById("message"),nameField=document.getElementById("nameField"),confirmField=document.getElementById("confirmField"),signinOptions=document.getElementById("signinOptions"),password=document.getElementById("password"),confirm=document.getElementById("confirm"),showPassword=document.getElementById("showPassword");let mode="signin";
-function setMessage(t,e=false){message.textContent=t;message.className="message"+(e?" error":"")}
-function setMode(next){mode=next;const s=next==="signup";signinTab.classList.toggle("active",!s);signupTab.classList.toggle("active",s);title.textContent=s?"Create your Ledger account":"Welcome back";intro.textContent=s?"Create an account to start tracking your crypto portfolio.":"Sign in to open your Ledger portfolio dashboard.";submit.textContent=s?"Create Ledger account":"Sign in to Ledger";nameField.classList.toggle("signup-visible",s);confirmField.classList.toggle("signup-visible",s);signinOptions.style.display=s?"none":"flex";document.getElementById("name").required=s;confirm.required=s;password.autocomplete=s?"new-password":"current-password";setMessage("")}
-signinTab.addEventListener("click",()=>setMode("signin"));signupTab.addEventListener("click",()=>setMode("signup"));
-showPassword.addEventListener("click",()=>{const v=password.type==="text";password.type=v?"password":"text";showPassword.textContent=v?"Show":"Hide"});
-document.getElementById("forgot").addEventListener("click",()=>setMessage("Password recovery will be connected next. For now, use your password or Google sign-in."));
+<header class="top">
+  <div class="brand"><div class="logo">L</div><span>Ledger</span></div>
+  <div class="local-pill">LOCAL ONLY • NO ACCOUNT</div>
+</header>
 
-async function loadGoogleSignIn(){
-  try{
-    const r=await fetch("/api/auth/google-config",{credentials:"same-origin"});
-    const cfg=await r.json();
-    if(!r.ok || !cfg.clientId) throw new Error("Google sign-in is not configured yet.");
-    const waitForGoogle=()=>new Promise((resolve,reject)=>{
-      const started=Date.now();
-      const timer=setInterval(()=>{
-        if(window.google?.accounts?.id){clearInterval(timer);resolve();}
-        else if(Date.now()-started>10000){clearInterval(timer);reject(new Error("Google sign-in could not load."));}
-      },100);
-    });
-    await waitForGoogle();
-    google.accounts.id.initialize({
-      client_id:cfg.clientId,
-      callback:async response=>{
-        try{
-          setMessage("Signing in with Google…");
-          const r=await fetch("/api/auth/google",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({credential:response.credential})});
-          const data=await r.json().catch(()=>({}));
-          if(!r.ok) throw new Error(data.error||"Google sign-in failed.");
-          setMessage("Google sign-in successful!");
-          setTimeout(()=>{window.location.href="/dashboard.html";},400);
-        }catch(error){setMessage(error.message||"Google sign-in failed.",true)}
-      },
-      auto_select:false,
-      cancel_on_tap_outside:true
-    });
-    google.accounts.id.renderButton(document.getElementById("googleButton"),{theme:"filled_black",size:"large",shape:"rectangular",width:370,text:"continue_with",logo_alignment:"left"});
-  }catch(error){
-    const box=document.getElementById("googleButton");
-    box.innerHTML="<button class='alt' type='button' disabled>Google sign-in unavailable</button>";
-  }
+<main class="main">
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Private crypto portfolio</div>
+      <h1>Your portfolio. Your browser. Your control.</h1>
+      <p>Ledger stores your holdings only in this browser using local storage. Market prices are fetched online so your portfolio value and profit/loss stay current.</p>
+    </div>
+    <div class="actions">
+      <button class="primary" id="addBtn">+ Add holding</button>
+      <button class="secondary" id="refreshBtn">↻ Refresh prices</button>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card"><div class="label">Portfolio value</div><div class="value" id="portfolioValue">$0.00</div><div class="sub">Live market value</div></div>
+    <div class="card"><div class="label">Total invested</div><div class="value" id="investedValue">$0.00</div><div class="sub">Based on your entries</div></div>
+    <div class="card"><div class="label">Profit / Loss</div><div class="value" id="pnlValue">—</div><div class="sub" id="pnlSub">Add a holding to begin</div></div>
+    <div class="card"><div class="label">Holdings</div><div class="value" id="holdingCount">0</div><div class="sub" id="updatedAt">Prices not loaded yet</div></div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>Your holdings</h2>
+      <div class="status" id="priceStatus">Waiting for prices…</div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Asset</th><th>Amount</th><th>Avg. buy price</th><th>Current price</th><th>Value</th><th>P/L</th><th></th></tr></thead>
+        <tbody id="holdingsBody"></tbody>
+      </table>
+      <div class="empty" id="emptyState"><strong>Your local portfolio is empty.</strong>Add BTC, ETH, SOL or another supported asset. Nothing is uploaded to Ledger's servers.</div>
+    </div>
+  </section>
+
+  <div class="footer-note">Your holdings stay in this browser. Clearing site data, changing browsers/devices, or using private browsing can remove your local portfolio. Online data is used only to retrieve current market prices.</div>
+</main>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="modal-head"><h3>Add a holding</h3><button class="close" id="closeBtn" type="button">×</button></div>
+    <div class="field"><label for="asset">Asset</label>
+      <select id="asset">
+        <option value="bitcoin">Bitcoin (BTC)</option>
+        <option value="ethereum">Ethereum (ETH)</option>
+        <option value="solana">Solana (SOL)</option>
+        <option value="binancecoin">BNB</option>
+        <option value="ripple">XRP</option>
+        <option value="dogecoin">Dogecoin (DOGE)</option>
+        <option value="cardano">Cardano (ADA)</option>
+        <option value="avalanche-2">Avalanche (AVAX)</option>
+        <option value="polkadot">Polkadot (DOT)</option>
+        <option value="chainlink">Chainlink (LINK)</option>
+        <option value="tron">TRON (TRX)</option>
+        <option value="shiba-inu">Shiba Inu (SHIB)</option>
+      </select>
+    </div>
+    <div class="field"><label for="amount">Amount</label><input id="amount" type="number" min="0" step="any" placeholder="0.00"></div>
+    <div class="field"><label for="buyPrice">Average buy price (USD)</label><input id="buyPrice" type="number" min="0" step="any" placeholder="0.00"><div class="hint">Enter the price you paid per coin. Ledger calculates invested value and P/L from this.</div></div>
+    <div class="modal-actions"><button class="secondary" id="cancelBtn" type="button">Cancel</button><button class="primary" id="saveBtn" type="button">Save holding</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY="ledger_local_portfolio_v1";
+const assets={
+ bitcoin:{symbol:"BTC",name:"Bitcoin"},ethereum:{symbol:"ETH",name:"Ethereum"},solana:{symbol:"SOL",name:"Solana"},binancecoin:{symbol:"BNB",name:"BNB"},
+ ripple:{symbol:"XRP",name:"XRP"},dogecoin:{symbol:"DOGE",name:"Dogecoin"},cardano:{symbol:"ADA",name:"Cardano"},"avalanche-2":{symbol:"AVAX",name:"Avalanche"},
+ polkadot:{symbol:"DOT",name:"Polkadot"},chainlink:{symbol:"LINK",name:"Chainlink"},tron:{symbol:"TRX",name:"TRON"},"shiba-inu":{symbol:"SHIB",name:"Shiba Inu"}
+};
+let holdings=loadHoldings();
+let prices={};
+let lastUpdated=null;
+let refreshInFlight=false;
+
+function loadHoldings(){
+  try{const value=JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]");return Array.isArray(value)?value:[]}
+  catch{return []}
 }
-loadGoogleSignIn();
-form.addEventListener("submit",async e=>{
-  e.preventDefault();
-  const email=document.getElementById("email").value.trim();
-  const pass=password.value;
-  if(mode==="signup"&&pass!==confirm.value){setMessage("Passwords do not match.",true);return}
-  if(mode==="signup"&&pass.length<8){setMessage("Password must be at least 8 characters.",true);return}
-  submit.disabled=true; submit.style.opacity=".65";
+function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(holdings))}
+function money(v){return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2}).format(Number(v)||0)}
+function num(v,max=8){const n=Number(v);return Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:max}):"0"}
+function toast(message,error=false){const el=document.getElementById("toast");el.textContent=message;el.className="toast show"+(error?" error":"");clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.className="toast",2800)}
+function saveAndRender(){persist();render()}
+function openModal(){document.getElementById("modal").classList.add("open");document.getElementById("amount").focus()}
+function closeModal(){document.getElementById("modal").classList.remove("open");document.getElementById("amount").value="";document.getElementById("buyPrice").value=""}
+
+function render(){
+  const body=document.getElementById("holdingsBody"), empty=document.getElementById("emptyState");
+  const invested=holdings.reduce((sum,h)=>sum+h.amount*h.buyPrice,0);
+  const current=holdings.reduce((sum,h)=>sum+h.amount*(prices[h.id]?.usd||0),0);
+  const pnl=current-invested;
+  document.getElementById("portfolioValue").textContent=money(current);
+  document.getElementById("investedValue").textContent=money(invested);
+  document.getElementById("holdingCount").textContent=String(holdings.length);
+  document.getElementById("pnlValue").textContent=holdings.length?money(pnl):"—";
+  document.getElementById("pnlValue").className="value "+(pnl>0?"positive":pnl<0?"negative":"");
+  document.getElementById("pnlSub").textContent=holdings.length?(invested?((pnl/invested)*100).toFixed(2)+"% return":"No cost basis"):"Add a holding to begin";
+  document.getElementById("updatedAt").textContent=lastUpdated?"Updated "+lastUpdated.toLocaleTimeString():"Prices not loaded yet";
+
+  if(!holdings.length){body.innerHTML="";empty.style.display="block";return}
+  empty.style.display="none";
+  body.innerHTML=holdings.map((h,i)=>{
+    const meta=assets[h.id]||{symbol:h.id.toUpperCase(),name:h.id};
+    const price=prices[h.id]?.usd;
+    const value=h.amount*(price||0);
+    const investedRow=h.amount*h.buyPrice;
+    const rowPnl=price==null?null:value-investedRow;
+    const rowPct=investedRow?((rowPnl/investedRow)*100):0;
+    return '<tr><td><div class="asset"><div class="coin">'+meta.symbol.slice(0,3)+'</div><div><div class="asset-name">'+meta.name+'</div><div class="asset-symbol">'+meta.symbol+'</div></div></div></td>'+
+      '<td>'+num(h.amount,8)+'</td><td>'+money(h.buyPrice)+'</td><td>'+(price==null?'<span class="muted">Loading…</span>':money(price))+'</td>'+
+      '<td>'+(price==null?'<span class="muted">—</span>':money(value))+'</td>'+
+      '<td>'+(rowPnl==null?'<span class="muted">—</span>':'<span class="'+(rowPnl>0?"positive":rowPnl<0?"negative":"")+'">'+money(rowPnl)+' ('+rowPct.toFixed(2)+'%)</span>')+
+      '</td><td><button class="secondary remove" data-index="'+i+'" style="padding:8px 10px">Remove</button></td></tr>'
+  }).join("");
+  document.querySelectorAll(".remove").forEach(btn=>btn.addEventListener("click",()=>{holdings.splice(Number(btn.dataset.index),1);saveAndRender();toast("Holding removed.")}));
+}
+
+async function refreshPrices(){
+  if(refreshInFlight)return;
+  if(!holdings.length){document.getElementById("priceStatus").textContent="Add a holding to load prices";return}
+  refreshInFlight=true;
+  document.getElementById("priceStatus").textContent="Updating prices…";
   try{
-    const endpoint=mode==="signup"?"/api/auth/register":"/api/auth/login";
-    const payload=mode==="signup"
-      ? {name:document.getElementById("name").value.trim(),email,password:pass}
-      : {email,password:pass};
-    const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify(payload)});
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok) throw new Error(data.error||"Authentication failed.");
-    setMessage(mode==="signup"?"Account created successfully! You are signed in.":"Signed in successfully!");
-    setTimeout(()=>{ window.location.href="/dashboard.html"; },500);
+    const ids=[...new Set(holdings.map(h=>h.id))].join(",");
+    const response=await fetch("/api/prices?ids="+encodeURIComponent(ids),{cache:"no-store"});
+    if(!response.ok)throw new Error("Price service returned "+response.status);
+    const data=await response.json();
+    prices=data;
+    lastUpdated=new Date();
+    document.getElementById("priceStatus").textContent="Live prices • "+lastUpdated.toLocaleTimeString();
+    render();
   }catch(error){
-    setMessage(error.message||"Something went wrong. Please try again.",true);
-  }finally{
-    submit.disabled=false; submit.style.opacity="1";
+    document.getElementById("priceStatus").textContent="Price update failed — try again";
+    toast("Could not update market prices right now.",true);
+  }finally{refreshInFlight=false}
+}
+
+document.getElementById("addBtn").addEventListener("click",openModal);
+document.getElementById("closeBtn").addEventListener("click",closeModal);
+document.getElementById("cancelBtn").addEventListener("click",closeModal);
+document.getElementById("refreshBtn").addEventListener("click",refreshPrices);
+document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
+document.getElementById("saveBtn").addEventListener("click",()=>{
+  const id=document.getElementById("asset").value, amount=Number(document.getElementById("amount").value), buyPrice=Number(document.getElementById("buyPrice").value);
+  if(!Number.isFinite(amount)||amount<=0){toast("Enter a valid amount.",true);return}
+  if(!Number.isFinite(buyPrice)||buyPrice<0){toast("Enter a valid buy price.",true);return}
+  const existing=holdings.find(h=>h.id===id);
+  if(existing){
+    const totalAmount=existing.amount+amount;
+    existing.buyPrice=((existing.amount*existing.buyPrice)+(amount*buyPrice))/totalAmount;
+    existing.amount=totalAmount;
+  }else{
+    holdings.push({id,amount,buyPrice});
   }
+  saveAndRender();closeModal();toast("Holding saved locally.");
+  refreshPrices();
 });
+
+render();
+refreshPrices();
+setInterval(refreshPrices,60000);
 </script>
 </body>
 </html>
