@@ -3,29 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#07111f">
-<title>Ledger — Dashboard</title>
-<style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#06101d;color:#f7fafc;font-family:Inter,system-ui,sans-serif}.top{height:72px;border-bottom:1px solid #1b3045;background:#091727;display:flex;align-items:center;justify-content:space-between;padding:0 5vw}.brand{display:flex;align-items:center;gap:12px;font-size:22px;font-weight:850}.logo{width:40px;height:40px;border-radius:12px;background:#31d7a3;color:#06111b;display:grid;place-items:center;font-weight:900}.logout{border:1px solid #2a4057;background:#0c1c2e;color:#dbe5ef;padding:10px 15px;border-radius:10px;cursor:pointer;font-weight:700}.main{max-width:1200px;margin:0 auto;padding:52px 5vw}.eyebrow{color:#70e5c2;text-transform:uppercase;letter-spacing:.14em;font-size:12px;font-weight:800}.hero{display:flex;justify-content:space-between;gap:30px;align-items:end}.hero h1{font-size:clamp(34px,5vw,58px);letter-spacing:-.04em;margin:8px 0}.muted{color:#8fa1b6}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:38px}.card{padding:26px;border:1px solid #1d344b;border-radius:20px;background:#0a1a2d}.value{font-size:30px;font-weight:850;margin-top:10px}.label{font-size:13px;color:#8193a8}.empty{margin-top:20px;padding:42px;text-align:center;border:1px dashed #29425a;border-radius:20px;color:#8294aa}.loading{text-align:center;padding:80px;color:#94a6bb}@media(max-width:700px){.cards{grid-template-columns:1fr}.hero{display:block}}
-</style>
+<meta http-equiv="refresh" content="0; url=/">
+<title>Ledger</title>
 </head>
 <body>
-<header class="top"><div class="brand"><div class="logo">L</div>Ledger</div><button class="logout" id="logout">Sign out</button></header>
-<main class="main" id="app"><div class="loading">Checking your Ledger session…</div></main>
-<script>
-const app=document.getElementById("app");
-async function load(){
- try{
-  const r=await fetch("/api/auth/me",{credentials:"include"});
-  if(!r.ok){location.href="/";return}
-  const data=await r.json();
-  const user=data.user;
-  app.innerHTML='<div class="hero"><div><div class="eyebrow">Ledger dashboard</div><h1>Welcome, '+escapeHtml(user.name||"Investor")+'.</h1><div class="muted">'+escapeHtml(user.email)+'</div></div></div><div class="cards"><div class="card"><div class="label">Portfolio value</div><div class="value">$0.00</div></div><div class="card"><div class="label">Total invested</div><div class="value">$0.00</div></div><div class="card"><div class="label">Profit / Loss</div><div class="value">—</div></div></div><div class="empty"><strong>Your portfolio is ready for setup.</strong><br><br>Add your first crypto holding in the next Ledger update.</div>';
- }catch(e){location.href="/"}
-}
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
-document.getElementById("logout").addEventListener("click",async()=>{await fetch("/api/auth/logout",{method:"POST",credentials:"include"});location.href="/"});
-load();
-</script>
+<script>location.replace("/");</script>
+<p>Opening Ledger…</p>
 </body>
 </html>
