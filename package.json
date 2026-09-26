@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "mongodb": "^6.21.0"
+    "mongodb": "^6.21.0",
+    "jose": "^6.1.0"
   }
 }
