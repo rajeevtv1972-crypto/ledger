@@ -1,0 +1,9 @@
+{
+  "name": "ledger",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "mongodb": "^6.21.0"
+  }
+}

@@ -42,7 +42,7 @@ body{min-height:100vh}button,input{font:inherit}.page{min-height:100vh;display:g
 <div class="row" id="signinOptions"><label class="check"><input type="checkbox"> Remember me</label><button class="link" type="button" id="forgot">Forgot password?</button></div>
 <button class="primary" id="submit" type="submit">Sign in to Ledger</button></form>
 <div class="divider">OR</div><button class="alt" id="demo" type="button">Continue with demo account</button>
-<div class="message" id="message"></div><div class="small">Secure authentication powered by your Ledger Supabase database.</div>
+<div class="message" id="message"></div><div class="small">Secure authentication powered by your private Ledger database.</div>
 </div></section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -68,42 +68,28 @@ function setMode(next){mode=next;const s=next==="signup";signinTab.classList.tog
 signinTab.addEventListener("click",()=>setMode("signin"));signupTab.addEventListener("click",()=>setMode("signup"));
 showPassword.addEventListener("click",()=>{const v=password.type==="text";password.type=v?"password":"text";showPassword.textContent=v?"Show":"Hide"});
 document.getElementById("forgot").addEventListener("click",()=>setMessage("Password recovery will be connected when Ledger authentication is enabled."));
-document.getElementById("demo").addEventListener("click",()=>{localStorage.setItem("ledgerDemoUser","demo@ledger.local");setMessage("Demo mode enabled — dashboard access will be added next.")});
+document.getElementById("demo").addEventListener("click",()=>setMessage("Demo access will be added after the main portfolio dashboard is ready."));
 form.addEventListener("submit",async e=>{
   e.preventDefault();
   const email=document.getElementById("email").value.trim();
   const pass=password.value;
   if(mode==="signup"&&pass!==confirm.value){setMessage("Passwords do not match.",true);return}
-  if(!supabase){
-    setMessage("Supabase is not connected yet. Add your Project URL and Publishable key.",true);
-    return;
-  }
-  submit.disabled=true;
-  submit.style.opacity=".65";
+  if(mode==="signup"&&pass.length<8){setMessage("Password must be at least 8 characters.",true);return}
+  submit.disabled=true; submit.style.opacity=".65";
   try{
-    if(mode==="signup"){
-      const name=document.getElementById("name").value.trim();
-      const {data,error}=await supabase.auth.signUp({
-        email,
-        password:pass,
-        options:{data:{full_name:name}}
-      });
-      if(error) throw error;
-      if(data.session){
-        setMessage("Account created successfully. Your Ledger session is active.");
-      }else{
-        setMessage("Account created. Check your email to confirm your account, then sign in.");
-      }
-    }else{
-      const {data,error}=await supabase.auth.signInWithPassword({email,password:pass});
-      if(error) throw error;
-      setMessage("Signed in successfully. Your Ledger dashboard is ready for the next step.");
-    }
+    const endpoint=mode==="signup"?"/api/auth/register":"/api/auth/login";
+    const payload=mode==="signup"
+      ? {name:document.getElementById("name").value.trim(),email,password:pass}
+      : {email,password:pass};
+    const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify(payload)});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(data.error||"Authentication failed.");
+    setMessage(mode==="signup"?"Account created successfully! You are signed in.":"Signed in successfully!");
+    setTimeout(()=>{ window.location.href="/dashboard.html"; },500);
   }catch(error){
-    setMessage(error?.message||"Authentication failed. Please try again.",true);
+    setMessage(error.message||"Something went wrong. Please try again.",true);
   }finally{
-    submit.disabled=false;
-    submit.style.opacity="1";
+    submit.disabled=false; submit.style.opacity="1";
   }
 });
 </script>
