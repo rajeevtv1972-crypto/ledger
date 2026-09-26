@@ -2,26 +2,58 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07111f">
-<meta name="description" content="Ledger — crypto portfolio tracker">
-<title>Ledger — Crypto Portfolio</title>
+<meta name="description" content="Ledger — secure crypto portfolio tracking">
+<title>Ledger — Sign in</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#06101d;color:#f7fafc}.wrap{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 0,#153a60 0,#0b1b2f 42%,#04080f 85%)}.card{width:min(760px,100%);padding:50px 34px;text-align:center;border:1px solid rgba(255,255,255,.12);border-radius:30px;background:rgba(9,22,38,.9);box-shadow:0 30px 100px rgba(0,0,0,.45)}.logo{width:74px;height:74px;margin:0 auto 20px;border-radius:22px;display:grid;place-items:center;background:#31d7a3;color:#06111b;font-size:38px;font-weight:900}.title{font-size:clamp(48px,10vw,76px);font-weight:850;letter-spacing:-.05em}.sub{max-width:600px;margin:16px auto 30px;color:#aab8ca;font-size:18px;line-height:1.65}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.box{padding:22px 16px;border:1px solid rgba(255,255,255,.07);border-radius:18px;background:rgba(255,255,255,.045)}.num{font-weight:800;font-size:24px}.label{margin-top:7px;color:#8292a7;font-size:13px}.status{margin-top:28px;display:inline-flex;align-items:center;gap:9px;padding:11px 17px;border-radius:999px;background:#0b3029;border:1px solid #21584d;color:#90edd2;font-weight:750}.dot{width:9px;height:9px;border-radius:50%;background:#31d7a3;box-shadow:0 0 14px #31d7a3}.note{margin-top:18px;color:#66778d;font-size:12px}@media(max-width:600px){.grid{grid-template-columns:1fr}.card{padding:42px 20px}.sub{font-size:16px}}
+:root{--bg:#06101d;--panel:#0b192b;--panel2:#0f2238;--line:rgba(255,255,255,.1);--text:#f7fafc;--muted:#94a6bb;--accent:#31d7a3;--accent2:#25bd91;--danger:#ff7b8f}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+body{min-height:100vh}button,input{font:inherit}.page{min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr}
+.brand{position:relative;display:flex;align-items:center;padding:70px 8vw;background:radial-gradient(circle at 20% 20%,#183e62 0,transparent 42%),radial-gradient(circle at 80% 80%,#123e38 0,transparent 35%),linear-gradient(145deg,#071321,#081522 55%,#07111d);overflow:hidden}
+.brand:before,.brand:after{content:"";position:absolute;border-radius:999px;border:1px solid rgba(49,215,163,.12)}.brand:before{width:520px;height:520px;left:-230px;top:-190px}.brand:after{width:440px;height:440px;right:-230px;bottom:-220px}
+.brand-inner{position:relative;z-index:2;max-width:560px}.logo{width:72px;height:72px;border-radius:22px;background:var(--accent);color:#06111b;display:grid;place-items:center;font-size:38px;font-weight:900;box-shadow:0 18px 45px rgba(49,215,163,.18);margin-bottom:28px}
+.eyebrow{color:#7de7c6;font-size:13px;letter-spacing:.16em;text-transform:uppercase;font-weight:800}.brand h1{font-size:clamp(50px,7vw,88px);line-height:.98;letter-spacing:-.055em;margin:12px 0 20px}.brand p{font-size:19px;line-height:1.7;color:#a7b6c8;max-width:520px;margin:0}
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:36px}.feature{padding:15px;border-radius:16px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}.feature strong{display:block;font-size:14px}.feature span{display:block;margin-top:5px;color:#7f91a7;font-size:12px}
+.auth-side{display:grid;place-items:center;padding:40px 28px;background:#081321}.auth{width:min(440px,100%);padding:34px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,rgba(15,34,56,.96),rgba(10,25,43,.98));box-shadow:0 24px 80px rgba(0,0,0,.32)}
+.switcher{display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:13px;background:#081523;margin-bottom:28px}.switcher button{border:0;background:transparent;color:#8192a7;padding:11px;border-radius:10px;cursor:pointer;font-weight:750}.switcher button.active{background:#17314b;color:#f4f8fb}
+.auth h2{font-size:30px;letter-spacing:-.03em;margin:0 0 8px}.auth .intro{color:var(--muted);font-size:14px;margin:0 0 24px;line-height:1.5}
+.field{margin-bottom:16px}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:8px;color:#ced7e3}.field input{width:100%;border:1px solid #294158;background:#071522;color:#fff;border-radius:12px;padding:13px 14px;outline:none;transition:.2s}.field input:focus{border-color:#31d7a3;box-shadow:0 0 0 3px rgba(49,215,163,.1)}
+.password-row{position:relative}.password-row input{padding-right:70px}.show{position:absolute;right:10px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#8ea0b5;cursor:pointer;font-size:12px;font-weight:700}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:2px 0 19px;color:#8495aa;font-size:12px}.check{display:flex;align-items:center;gap:8px;cursor:pointer}.check input{accent-color:var(--accent)}
+.link{border:0;background:transparent;color:#73e4c4;cursor:pointer;padding:0}.primary{width:100%;border:0;border-radius:12px;padding:14px;background:var(--accent);color:#06111b;font-weight:900;cursor:pointer;transition:.18s}.primary:hover{background:var(--accent2);transform:translateY(-1px)}
+.divider{display:flex;align-items:center;gap:10px;color:#66788e;font-size:11px;margin:22px 0}.divider:before,.divider:after{content:"";height:1px;background:rgba(255,255,255,.09);flex:1}
+.alt{width:100%;border:1px solid #2a4158;background:#0b1a2d;color:#e9eef5;border-radius:12px;padding:12px;cursor:pointer;font-weight:700}.small{margin-top:20px;text-align:center;color:#64768c;font-size:11px;line-height:1.5}
+.message{min-height:18px;margin:12px 0 0;text-align:center;font-size:12px;color:#8ce9cf}.message.error{color:var(--danger)}.signup-extra{display:none}.signup-extra.show{display:block}
+@media(max-width:900px){.page{grid-template-columns:1fr}.brand{display:none}.auth-side{min-height:100vh;padding:22px}.auth{padding:28px 22px}}
 </style>
 </head>
 <body>
-<main class="wrap"><section class="card">
-<div class="logo">L</div>
-<div class="title">Ledger</div>
-<div class="sub">Your crypto portfolio tracker is online. We have intentionally started with a plain static entry page so Cloudflare Pages can serve it without a build or Functions step.</div>
-<div class="grid">
-<div class="box"><div class="num">LIVE</div><div class="label">Cloudflare deployment</div></div>
-<div class="box"><div class="num">100+</div><div class="label">Crypto assets planned</div></div>
-<div class="box"><div class="num">SECURE</div><div class="label">Private portfolio data</div></div>
-</div>
-<div class="status"><span class="dot"></span> Deployment check passed</div>
-<div class="note">Ledger • Crypto Portfolio Tracker</div>
-</section></main>
+<main class="page">
+<section class="brand"><div class="brand-inner"><div class="logo">L</div><div class="eyebrow">Crypto portfolio tracker</div><h1>Know where your crypto stands.</h1><p>Ledger gives you one clean place to follow your holdings, track performance and keep your portfolio organized.</p><div class="features"><div class="feature"><strong>Portfolio</strong><span>Track your holdings</span></div><div class="feature"><strong>Markets</strong><span>Watch crypto prices</span></div><div class="feature"><strong>Insights</strong><span>See your P&amp;L</span></div></div></div></section>
+<section class="auth-side"><div class="auth">
+<div class="switcher"><button id="signinTab" class="active" type="button">Sign in</button><button id="signupTab" type="button">Create account</button></div>
+<h2 id="title">Welcome back</h2><p class="intro" id="intro">Sign in to open your Ledger portfolio dashboard.</p>
+<form id="authForm">
+<div class="field signup-extra" id="nameField"><label for="name">Full name</label><input id="name" type="text" autocomplete="name" placeholder="Your name"></div>
+<div class="field"><label for="email">Email address</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required></div>
+<div class="field"><label for="password">Password</label><div class="password-row"><input id="password" type="password" autocomplete="current-password" placeholder="Enter your password" minlength="6" required><button class="show" id="showPassword" type="button">Show</button></div></div>
+<div class="field signup-extra" id="confirmField"><label for="confirm">Confirm password</label><input id="confirm" type="password" autocomplete="new-password" placeholder="Repeat your password" minlength="6"></div>
+<div class="row" id="signinOptions"><label class="check"><input type="checkbox"> Remember me</label><button class="link" type="button" id="forgot">Forgot password?</button></div>
+<button class="primary" id="submit" type="submit">Sign in to Ledger</button></form>
+<div class="divider">OR</div><button class="alt" id="demo" type="button">Continue with demo account</button>
+<div class="message" id="message"></div><div class="small">Authentication will be connected to your private portfolio database in the next step.</div>
+</div></section>
+</main>
+<script>
+const signinTab=document.getElementById("signinTab"),signupTab=document.getElementById("signupTab"),title=document.getElementById("title"),intro=document.getElementById("intro"),submit=document.getElementById("submit"),form=document.getElementById("authForm"),message=document.getElementById("message"),nameField=document.getElementById("nameField"),confirmField=document.getElementById("confirmField"),signinOptions=document.getElementById("signinOptions"),password=document.getElementById("password"),confirm=document.getElementById("confirm"),showPassword=document.getElementById("showPassword");let mode="signin";
+function setMessage(t,e=false){message.textContent=t;message.className="message"+(e?" error":"")}
+function setMode(next){mode=next;const s=next==="signup";signinTab.classList.toggle("active",!s);signupTab.classList.toggle("active",s);title.textContent=s?"Create your Ledger account":"Welcome back";intro.textContent=s?"Create an account to start tracking your crypto portfolio.":"Sign in to open your Ledger portfolio dashboard.";submit.textContent=s?"Create Ledger account":"Sign in to Ledger";nameField.classList.toggle("show",s);confirmField.classList.toggle("show",s);signinOptions.style.display=s?"none":"flex";document.getElementById("name").required=s;confirm.required=s;password.autocomplete=s?"new-password":"current-password";setMessage("")}
+signinTab.addEventListener("click",()=>setMode("signin"));signupTab.addEventListener("click",()=>setMode("signup"));
+showPassword.addEventListener("click",()=>{const v=password.type==="text";password.type=v?"password":"text";showPassword.textContent=v?"Show":"Hide"});
+document.getElementById("forgot").addEventListener("click",()=>setMessage("Password recovery will be connected when Ledger authentication is enabled."));
+document.getElementById("demo").addEventListener("click",()=>{localStorage.setItem("ledgerDemoUser","demo@ledger.local");setMessage("Demo mode enabled — dashboard access will be added next.")});
+form.addEventListener("submit",e=>{e.preventDefault();if(mode==="signup"&&password.value!==confirm.value){setMessage("Passwords do not match.",true);return}setMessage(mode==="signup"?"Account form ready — next step is Supabase authentication.":"Login form ready — next step is Supabase authentication.")});
+</script>
 </body>
 </html>
