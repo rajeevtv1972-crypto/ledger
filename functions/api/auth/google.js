@@ -1,5 +1,10 @@
+import { jwtVerify, createRemoteJWKSet } from "jose";
 import { getDb } from "../../../_lib/mongo.js";
 import { randomToken, hashToken, json, sessionCookie } from "../../../_lib/auth.js";
+
+const googleKeys = createRemoteJWKSet(
+  new URL("https://www.googleapis.com/oauth2/v3/certs")
+);
 
 async function createSession(db, userId) {
   const token = await randomToken(32);
@@ -19,33 +24,27 @@ export async function onRequestPost({ request, env }) {
       return json({ error: "Google sign-in is not configured on the server." }, 503);
     }
 
+    const origin = request.headers.get("Origin");
+    const expectedOrigin = new URL(request.url).origin;
+    if (origin && origin !== expectedOrigin) {
+      return json({ error: "Invalid sign-in origin." }, 403);
+    }
+
     const body = await request.json();
     const credential = String(body.credential || "");
     if (!credential) return json({ error: "Google credential is missing." }, 400);
 
-    // Google Identity Services returns a signed ID token in the credential field.
-    // This integration validates it with Google's tokeninfo endpoint.
-    const verifyResponse = await fetch(
-      "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential)
-    );
-    const claims = await verifyResponse.json().catch(() => ({}));
+    const { payload } = await jwtVerify(credential, googleKeys, {
+      issuer: ["https://accounts.google.com", "accounts.google.com"],
+      audience: env.GOOGLE_CLIENT_ID
+    });
 
-    if (!verifyResponse.ok) return json({ error: "Google could not verify this sign-in." }, 401);
+    const subject = String(payload.sub || "");
+    const email = String(payload.email || "").trim().toLowerCase();
+    const emailVerified = payload.email_verified === true;
+    const name = String(payload.name || email.split("@")[0]).slice(0, 100);
 
-    const issuer = String(claims.iss || "");
-    const audience = String(claims.aud || "");
-    const subject = String(claims.sub || "");
-    const email = String(claims.email || "").trim().toLowerCase();
-    const emailVerified = claims.email_verified === true || claims.email_verified === "true";
-    const expiresAt = Number(claims.exp || 0);
-
-    if (!["https://accounts.google.com", "accounts.google.com"].includes(issuer)) {
-      return json({ error: "Invalid Google token issuer." }, 401);
-    }
-    if (audience !== env.GOOGLE_CLIENT_ID) {
-      return json({ error: "This Google account is not authorized for Ledger." }, 401);
-    }
-    if (!subject || !email || !emailVerified || expiresAt * 1000 <= Date.now()) {
+    if (!subject || !email || !emailVerified) {
       return json({ error: "Google account verification failed." }, 401);
     }
     if (!email.endsWith("@gmail.com")) {
@@ -70,7 +69,7 @@ export async function onRequestPost({ request, env }) {
             $set: {
               googleSub: subject,
               authProvider: user.passwordHash ? "password+google" : "google",
-              picture: claims.picture || user.picture || null,
+              picture: payload.picture || user.picture || null,
               updatedAt: new Date()
             }
           }
@@ -79,11 +78,11 @@ export async function onRequestPost({ request, env }) {
       } else {
         const now = new Date();
         const result = await users.insertOne({
-          name: String(claims.name || email.split("@")[0]).slice(0, 100),
+          name,
           email,
           googleSub: subject,
           authProvider: "google",
-          picture: claims.picture || null,
+          picture: payload.picture || null,
           createdAt: now,
           updatedAt: now
         });
