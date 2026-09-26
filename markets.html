@@ -15,8 +15,7 @@ main{max-width:1280px;margin:0 auto;padding:42px 5vw 75px}.eyebrow{color:#78e2c3
 footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:center;color:#71859a;font-size:12px;background:#02070f}footer a{color:#b9eede;text-decoration:none;margin:0 8px}
 @media(max-width:700px){header{padding:28px 18px}.top{align-items:flex-start}.nav{gap:10px;flex-wrap:wrap;justify-content:flex-end}main{padding:30px 18px 55px}.widget{min-height:430px}.panel-head{align-items:flex-start;flex-direction:column}}
 </style>
-<script type="module" src="https://widgets.tradingview-widget.com/w/en/tv-crypto-coins-heatmap.js"></script>
-<script type="module" src="https://widgets.tradingview-widget.com/w/en/tv-forex-cross-rates.js"></script>
+
 </head>
 <body>
 <header>
@@ -29,24 +28,71 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:c
 <section class="hero">
 <div class="eyebrow">Live market centre</div>
 <h1>Crypto & Forex, in real time.</h1>
-<p>Explore a broad view of cryptocurrencies and currency crosses with TradingView market widgets. Crypto and forex widget data is provided in real time where TradingView has the data rights to display it.</p>
-<div class="note">TradingView does not provide a public market-data API for websites. These official widgets are used instead, so Ledger can show current TradingView-provided market data without pretending to offer unsupported access. <a href="https://www.tradingview.com/widget-docs/faq/data/">Learn more</a></div>
+<p>Explore individual crypto assets and live forex cross-rates using TradingView market widgets. The crypto screener lists assets separately; the forex table displays live crosses for a configurable set of currencies.</p>
+<div class="note">TradingView does not provide a public market-data API for websites. These official widgets are therefore embedded directly. TradingView says its crypto and forex widget data is real-time where it has the required market-data rights. <a href="https://www.tradingview.com/widget-docs/faq/data/">Learn more</a></div>
 </section>
 
 <section class="panel">
 <div class="panel-head"><h2>₿ Crypto market — separate coins</h2><span>Live crypto overview</span></div>
 <div class="widget">
-<tv-crypto-coins-heatmap></tv-crypto-coins-heatmap>
+  <div class="tradingview-widget-container" style="width:100%;height:100%">
+    <div class="tradingview-widget-container__widget"></div>
+    <div class="tradingview-widget-copyright" style="padding:10px 14px;text-align:right;font-size:10px;color:#70859a">
+      <a href="https://www.tradingview.com/markets/cryptocurrencies/prices-all/" rel="noopener nofollow" target="_blank" style="color:#8aa1b7;text-decoration:none">Crypto markets</a> by TradingView
+    </div>
+  </div>
 </div>
 </section>
 
 <section class="panel">
 <div class="panel-head"><h2>Forex market — currency pairs</h2><span>Live cross rates</span></div>
 <div class="widget">
-<tv-forex-cross-rates></tv-forex-cross-rates>
+  <div class="tradingview-widget-container" style="width:100%;height:100%">
+    <div class="tradingview-widget-container__widget"></div>
+    <div class="tradingview-widget-copyright" style="padding:10px 14px;text-align:right;font-size:10px;color:#70859a">
+      <a href="https://www.tradingview.com/markets/currencies/cross-rates-overview-prices/" rel="noopener nofollow" target="_blank" style="color:#8aa1b7;text-decoration:none">Forex cross rates</a> by TradingView
+    </div>
+  </div>
 </div>
 </section>
 </main>
 <footer>© 2026 Ledger. All rights reserved.<br><br><a href="/">Home</a><a href="/portfolio.html">Portfolio</a><a href="/about.html">About Us</a><a href="/contact.html">Contact Us</a><a href="/privacy-policy.html">Privacy Policy</a></footer>
+<script>
+function loadTVWidgets(){
+  const crypto=document.querySelectorAll('.tradingview-widget-container')[0];
+  const forex=document.querySelectorAll('.tradingview-widget-container')[1];
+  if(crypto && !crypto.querySelector('script')){
+    const s=document.createElement('script');
+    s.src='https://s3.tradingview.com/external-embedding/embed-widget-screener.js';
+    s.async=true;
+    s.textContent=JSON.stringify({
+      defaultColumn:'overview',
+      screener_type:'crypto_mkt',
+      displayCurrency:'USD',
+      colorTheme:'dark',
+      isTransparent:true,
+      locale:'en',
+      width:'100%',
+      height:'560'
+    });
+    crypto.appendChild(s);
+  }
+  if(forex && !forex.querySelector('script')){
+    const s=document.createElement('script');
+    s.src='https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js';
+    s.async=true;
+    s.textContent=JSON.stringify({
+      width:'100%',
+      height:'560',
+      currencies:['EUR','USD','JPY','GBP','CHF','AUD','CAD','NZD','CNY','INR'],
+      colorTheme:'dark',
+      isTransparent:true,
+      locale:'en'
+    });
+    forex.appendChild(s);
+  }
+}
+loadTVWidgets();
+</script>
 </body>
 </html>
