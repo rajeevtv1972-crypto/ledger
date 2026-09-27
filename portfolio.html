@@ -47,7 +47,7 @@ button,input,select{font:inherit}button{cursor:pointer}
     <div class="card"><div class="label">Portfolio value</div><div class="value" id="portfolioValue">$0.00</div><div class="sub">Live market value</div></div>
     <div class="card"><div class="label">Total invested</div><div class="value" id="investedValue">$0.00</div><div class="sub">Based on your entries</div></div>
     <div class="card"><div class="label">Profit / Loss</div><div class="value" id="pnlValue">—</div><div class="sub" id="pnlSub">Add a holding to begin</div></div>
-    <div class="card"><div class="label">Holdings</div><div class="value" id="holdingCount">0</div><div class="sub" id="updatedAt">Prices not loaded yet</div></div>
+    <div class="card"><div class="label">Holdings</div><div class="value" id="holdingCount">0</div><div class="sub" id="updatedAt">Waiting for live prices…</div></div>
   </section>
 
   <section class="section">
@@ -192,7 +192,8 @@ document.getElementById("saveBtn").addEventListener("click",()=>{
 
 render();
 refreshPrices();
-setInterval(refreshPrices,60000);
+setInterval(refreshPrices,10000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshPrices()});
 </script>
 </body>
 </html>
