@@ -5,13 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07111f">
 <meta name="description" content="Ledger — a private, local-first crypto portfolio tracker.">
+<link rel="icon" type="image/svg+xml" href="/assets/ledger-logo.svg">
 <title>Ledger — Local Crypto Portfolio</title>
 <style>
 :root{--bg:#06101d;--panel:#0a1829;--panel2:#0d2034;--line:#1b344b;--text:#f6fafc;--muted:#8fa3b8;--accent:#31d7a3;--accent2:#22bc90;--red:#ff7b8f;--shadow:0 24px 80px rgba(0,0,0,.28)}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% 0%,rgba(49,215,163,.08),transparent 30%),linear-gradient(180deg,#06101d,#071321 55%,#06101d);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 button,input,select{font:inherit}button{cursor:pointer}
 .top{position:sticky;top:0;z-index:10;height:72px;border-bottom:1px solid rgba(255,255,255,.07);background:rgba(6,16,29,.86);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:space-between;padding:0 4.5vw}
-.brand{display:flex;align-items:center;gap:12px;font-weight:900;font-size:22px;letter-spacing:-.03em}.logo{width:40px;height:40px;border-radius:13px;background:var(--accent);color:#06111b;display:grid;place-items:center;font-weight:950;box-shadow:0 10px 35px rgba(49,215,163,.16)}
+.brand{display:flex;align-items:center;gap:12px;font-weight:900;font-size:22px;letter-spacing:-.03em}.logo{width:40px;height:40px;border-radius:13px;overflow:hidden;display:grid;place-items:center;box-shadow:0 10px 35px rgba(49,215,163,.16)}.logo img{width:100%;height:100%;display:block}
 
 .main{max-width:1240px;margin:0 auto;padding:42px 4.5vw 80px}.hero{display:flex;justify-content:space-between;align-items:end;gap:20px}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#6fe4c1;font-weight:850}.hero h1{font-size:clamp(36px,5vw,66px);line-height:.98;letter-spacing:-.055em;margin:9px 0 12px}.hero p{margin:0;color:var(--muted);max-width:720px;line-height:1.6}
 .actions{display:flex;gap:10px;flex-wrap:wrap}.primary,.secondary{border-radius:12px;padding:12px 16px;font-weight:850}.primary{border:0;background:var(--accent);color:#06111b}.primary:hover{background:var(--accent2)}.secondary{border:1px solid #29445c;background:#0b1a2c;color:#dfe8f1}.secondary:hover{background:#0e2237}
@@ -26,7 +27,7 @@ button,input,select{font:inherit}button{cursor:pointer}
 </head>
 <body>
 <header class="top">
-  <div class="brand"><div class="logo">L</div><span>Ledger</span></div>
+  <a href="/" class="brand" style="color:inherit;text-decoration:none"><div class="logo"><img src="/assets/ledger-logo.svg" alt="Ledger"></div><span>Ledger</span></a>
   
 </header>
 
@@ -53,7 +54,7 @@ button,input,select{font:inherit}button{cursor:pointer}
   <section class="section">
     <div class="section-head">
       <h2>Your holdings</h2>
-      <div class="status" id="priceStatus">Waiting for prices…</div>
+      <div class="status" id="priceStatus">Connecting to live prices…</div>
     </div>
     <div class="table-wrap">
       <table class="table">
@@ -64,7 +65,7 @@ button,input,select{font:inherit}button{cursor:pointer}
     </div>
   </section>
 
-  <div class="footer-note">Your portfolio data is stored in your browser, while online market data is used to keep crypto prices current.</div>
+  <div class="footer-note">Your portfolio data is stored in your browser, while online market data is used to keep crypto prices current.<br><strong>© 2026 Ledger. All rights reserved.</strong></div>
 </main>
 
 <div class="modal-backdrop" id="modal">
@@ -149,25 +150,119 @@ function render(){
   document.querySelectorAll(".remove").forEach(btn=>btn.addEventListener("click",()=>{holdings.splice(Number(btn.dataset.index),1);saveAndRender();toast("Holding removed.")}));
 }
 
+const WS_SYMBOLS = {
+  bitcoin:"btcusdt", ethereum:"ethusdt", solana:"solusdt", binancecoin:"bnbusdt",
+  ripple:"xrpusdt", dogecoin:"dogeusdt", cardano:"adausdt", "avalanche-2":"avaxusdt",
+  polkadot:"dotusdt", chainlink:"linkusdt", tron:"trxusdt", "shiba-inu":"shibusdt"
+};
+let priceSocket=null;
+let socketRetryTimer=null;
+let socketManuallyClosed=false;
+
+function getLiveIds(){
+  return [...new Set(holdings.map(h=>h.id))].filter(id=>WS_SYMBOLS[id]);
+}
+
 async function refreshPrices(){
   if(refreshInFlight)return;
-  if(!holdings.length){document.getElementById("priceStatus").textContent="Add a holding to load prices";return}
+  if(!holdings.length){
+    document.getElementById("priceStatus").textContent="Add a holding to load prices";
+    return;
+  }
   refreshInFlight=true;
-  document.getElementById("priceStatus").textContent="Updating prices…";
+  document.getElementById("priceStatus").textContent=priceSocket?.readyState===WebSocket.OPEN
+    ?"Live stream connected"
+    :"Loading latest prices…";
   try{
     const ids=[...new Set(holdings.map(h=>h.id))].join(",");
-    const response=await fetch("/api/prices?ids="+encodeURIComponent(ids),{cache:"no-store"});
+    const response=await fetch("/api/prices?ids="+encodeURIComponent(ids),{
+      cache:"no-store",
+      headers:{accept:"application/json"}
+    });
     if(!response.ok)throw new Error("Price service returned "+response.status);
     const data=await response.json();
-    prices=data;
-    lastUpdated=new Date();
-    document.getElementById("priceStatus").textContent="Live prices • "+lastUpdated.toLocaleTimeString();
-    render();
+    if(data && !data.error){
+      prices={...prices,...data};
+      lastUpdated=new Date();
+      document.getElementById("priceStatus").textContent=
+        priceSocket?.readyState===WebSocket.OPEN
+          ?"LIVE • WebSocket • "+lastUpdated.toLocaleTimeString()
+          :"Updated • fallback • "+lastUpdated.toLocaleTimeString();
+      render();
+    }
   }catch(error){
-    document.getElementById("priceStatus").textContent="Price update failed — try again";
-    toast("Could not update market prices right now.",true);
-  }finally{refreshInFlight=false}
+    if(!lastUpdated){
+      document.getElementById("priceStatus").textContent="Unable to load prices — retrying…";
+      toast("Could not load market prices right now.",true);
+    }
+  }finally{
+    refreshInFlight=false;
+  }
 }
+
+function connectPriceStream(){
+  clearTimeout(socketRetryTimer);
+  if(socketManuallyClosed || !holdings.length || !("WebSocket" in window)) return;
+
+  const streams=getLiveIds().map(id=>WS_SYMBOLS[id]+"@ticker").join("/");
+  if(!streams){
+    refreshPrices();
+    return;
+  }
+
+  try{
+    if(priceSocket){
+      priceSocket.onclose=null;
+      priceSocket.close();
+    }
+
+    priceSocket=new WebSocket(
+      "wss://stream.binance.com:9443/stream?streams="+encodeURIComponent(streams)
+    );
+
+    priceSocket.onopen=()=>{
+      document.getElementById("priceStatus").textContent="LIVE • WebSocket connected";
+      refreshPrices();
+    };
+
+    priceSocket.onmessage=(event)=>{
+      try{
+        const packet=JSON.parse(event.data);
+        const tick=packet.data || packet;
+        const symbol=String(tick.s||"").toLowerCase();
+        const id=Object.keys(WS_SYMBOLS).find(key=>WS_SYMBOLS[key]===symbol);
+        const price=Number(tick.c);
+        if(!id || !Number.isFinite(price)) return;
+
+        prices[id]={usd:price};
+        lastUpdated=new Date(Number(tick.E)||Date.now());
+        document.getElementById("priceStatus").textContent=
+          "LIVE • WebSocket • "+lastUpdated.toLocaleTimeString();
+        render();
+      }catch(_){}
+    };
+
+    priceSocket.onerror=()=>{
+      document.getElementById("priceStatus").textContent="Reconnecting to live prices…";
+    };
+
+    priceSocket.onclose=()=>{
+      if(socketManuallyClosed)return;
+      document.getElementById("priceStatus").textContent="Reconnecting to live prices…";
+      clearTimeout(socketRetryTimer);
+      socketRetryTimer=setTimeout(connectPriceStream,2000);
+    };
+  }catch(_){
+    clearTimeout(socketRetryTimer);
+    socketRetryTimer=setTimeout(connectPriceStream,3000);
+  }
+}
+
+function restartPriceStream(){
+  socketManuallyClosed=false;
+  connectPriceStream();
+}
+
 
 document.getElementById("addBtn").addEventListener("click",openModal);
 document.getElementById("closeBtn").addEventListener("click",closeModal);
@@ -192,8 +287,10 @@ document.getElementById("saveBtn").addEventListener("click",()=>{
 
 render();
 refreshPrices();
-setInterval(refreshPrices,10000);
-document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshPrices()});
+connectPriceStream();
+setInterval(()=>{ if(!document.hidden && (!priceSocket || priceSocket.readyState!==WebSocket.OPEN)) refreshPrices(); },30000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){refreshPrices();restartPriceStream()}});
+window.addEventListener("beforeunload",()=>{socketManuallyClosed=true;clearTimeout(socketRetryTimer);if(priceSocket)priceSocket.close()});
 </script>
 </body>
 </html>
