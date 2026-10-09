@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#06101d">
 <link rel="icon" type="image/svg+xml" href="/assets/ledger-logo.svg">
-<meta name="description" content="Ledger live crypto and forex markets powered by TradingView data widgets.">
+<meta name="description" content="Ledger crypto markets with live Binance Spot prices and forex cross-rates.">
 <title>Ledger — Live Crypto & Forex Markets</title>
 <style>
 :root{--bg:#06101d;--panel:#0b1b2d;--line:#1d3850;--text:#f6fafc;--muted:#93a7ba;--accent:#31d7a3}
@@ -13,6 +13,15 @@
 header{padding:44px 5vw 34px;border-bottom:1px solid rgba(255,255,255,.07);background:#081625}.top{max-width:1280px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:20px}.brand{display:flex;align-items:center;gap:11px;color:var(--text);text-decoration:none;font-size:22px;font-weight:900}.logo{width:40px;height:40px;border-radius:13px;background:var(--accent);color:#06111b;display:grid;place-items:center;font-weight:950}.nav{display:flex;gap:18px;font-size:13px}.nav a{color:#b8c8d8;text-decoration:none}.nav a:hover{color:var(--accent)}
 main{max-width:1280px;margin:0 auto;padding:42px 5vw 75px}.eyebrow{color:#78e2c3;font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-weight:900}.hero h1{font-size:clamp(38px,5vw,64px);line-height:1;letter-spacing:-.055em;margin:10px 0}.hero p{max-width:760px;color:var(--muted);line-height:1.65;margin:0}.note{margin-top:17px;padding:13px 15px;border:1px solid #23445c;border-radius:13px;background:#091827;color:#8ea4b9;font-size:12px;line-height:1.5}.note a{color:#a8ead7}
 .panel{margin-top:25px;border:1px solid var(--line);border-radius:22px;background:#091827;overflow:hidden}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:19px 20px;border-bottom:1px solid rgba(255,255,255,.07)}.panel-head h2{margin:0;font-size:19px}.panel-head span{font-size:11px;color:#7f96aa}.widget{min-height:510px;background:#07121f}
+.market-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06)}
+.market-search,.market-sort{color:var(--text);background:#0a1b2c;border:1px solid #244159;border-radius:11px;padding:11px 13px;outline:none}
+.market-search{flex:1;min-width:190px}.market-sort{min-width:170px}.market-search:focus,.market-sort:focus{border-color:var(--accent)}
+.market-button{border:0;border-radius:11px;background:var(--accent);color:#06111b;padding:11px 14px;font-weight:850;cursor:pointer}.market-button:hover{filter:brightness(.94)}
+.market-table-wrap{overflow:auto}.market-table{border-collapse:collapse;width:100%;min-width:780px}.market-table th,.market-table td{padding:15px 18px;border-bottom:1px solid rgba(255,255,255,.055);text-align:right;white-space:nowrap;font-size:13px}.market-table th{color:#758da3;text-transform:uppercase;letter-spacing:.08em;font-size:10px;background:#081725}.market-table th:first-child,.market-table td:first-child{text-align:left}.market-table tbody tr:hover{background:rgba(255,255,255,.025)}
+.coin-cell{display:flex;align-items:center;gap:11px;min-width:160px}.coin-avatar{width:36px;height:36px;border:1px solid #25435b;border-radius:12px;background:#10263a;color:#b5f3df;display:grid;place-items:center;font-size:11px;font-weight:900}.coin-name{font-weight:850;color:#edf5fa}.coin-pair{font-size:10px;color:#74899e;margin-top:3px}.price-cell{font-variant-numeric:tabular-nums;font-weight:800}.up{color:#31d7a3!important}.down{color:#ff8392!important}.change-pill{display:inline-block;min-width:78px;text-align:center;padding:6px 8px;border-radius:8px;font-size:11px;font-weight:850;background:rgba(49,215,163,.09)}.change-pill.down{background:rgba(255,131,146,.09)}
+.market-status{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:13px 20px;color:#7f96aa;font-size:11px}.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#31d7a3;box-shadow:0 0 10px rgba(49,215,163,.55);margin-right:7px}.market-empty{padding:40px 18px;text-align:center;color:#8498ac;font-size:13px}
+#forexWidget{min-height:520px}
+@media(max-width:700px){.market-toolbar{padding:13px}.market-search,.market-sort,.market-button{width:100%}.market-table th,.market-table td{padding:13px 14px}.market-status{padding:13px}}
 footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:center;color:#71859a;font-size:12px;background:#02070f}footer a{color:#b9eede;text-decoration:none;margin:0 8px}
 @media(max-width:700px){header{padding:28px 18px}.top{align-items:flex-start}.nav{gap:10px;flex-wrap:wrap;justify-content:flex-end}main{padding:30px 18px 55px}.widget{min-height:430px}.panel-head{align-items:flex-start;flex-direction:column}}
 </style>
@@ -29,25 +38,40 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:c
 <section class="hero">
 <div class="eyebrow">Live market centre</div>
 <h1>Crypto & Forex, in real time.</h1>
-<p>Explore individual crypto assets and live forex cross-rates using TradingView market widgets. The crypto screener lists assets separately; the forex table displays live crosses for a configurable set of currencies.</p>
-<div class="note">TradingView does not provide a public market-data API for websites. These official widgets are therefore embedded directly. TradingView says its crypto and forex widget data is real-time where it has the required market-data rights. <a href="https://www.tradingview.com/widget-docs/faq/data/">Learn more</a></div>
+<p>Track cryptocurrency prices, 24-hour movement, daily highs and lows, and trading volume using Binance public market data. The forex cross-rate widget remains available below.</p>
+<div class="note">Crypto quotes are streamed from Binance Spot public market data with no API key. Prices are quoted in USDT pairs. Forex cross-rates below are still provided by TradingView.</div>
 </section>
 
-<section class="panel">
-<div class="panel-head"><h2>₿ Crypto market — separate coins</h2><span>Live crypto overview</span></div>
-<div class="widget">
-  <div class="tradingview-widget-container" style="width:100%;height:100%">
-    <div class="tradingview-widget-container__widget"></div>
-    <div class="tradingview-widget-copyright" style="padding:10px 14px;text-align:right;font-size:10px;color:#70859a">
-      <a href="https://www.tradingview.com/markets/cryptocurrencies/prices-all/" rel="noopener nofollow" target="_blank" style="color:#8aa1b7;text-decoration:none">Crypto markets</a> by TradingView
-    </div>
-  </div>
+<section class="panel" id="cryptoMarket">
+<div class="panel-head">
+  <h2>₿ Crypto market</h2>
+  <span id="connectionStatus"><span class="live-dot"></span>Connecting to Binance…</span>
+</div>
+<div class="market-toolbar">
+  <input class="market-search" id="cryptoSearch" type="search" placeholder="Search coins or symbols…" aria-label="Search crypto markets">
+  <select class="market-sort" id="cryptoSort" aria-label="Sort crypto markets">
+    <option value="featured">Featured assets</option>
+    <option value="volume">Highest volume</option>
+    <option value="gainers">Top gainers</option>
+    <option value="losers">Top losers</option>
+  </select>
+  <button class="market-button" id="refreshMarkets" type="button">↻ Refresh</button>
+</div>
+<div class="market-table-wrap">
+  <table class="market-table">
+    <thead><tr><th>Asset</th><th>Last price (USDT)</th><th>24h change</th><th>24h high</th><th>24h low</th><th>24h volume (USDT)</th></tr></thead>
+    <tbody id="cryptoRows"><tr><td colspan="6"><div class="market-empty">Loading live Binance market data…</div></td></tr></tbody>
+  </table>
+</div>
+<div class="market-status">
+  <span id="marketDataStatus">Waiting for latest market data…</span>
+  <span id="marketUpdatedAt">—</span>
 </div>
 </section>
 
-<section class="panel">
-<div class="panel-head"><h2>Forex market — currency pairs</h2><span>Live cross rates</span></div>
-<div class="widget">
+<section class="panel" id="forexPanel">
+<div class="panel-head"><h2>Forex market — currency pairs</h2><span>Live cross rates • TradingView</span></div>
+<div class="widget" id="forexWidget">
   <div class="tradingview-widget-container" style="width:100%;height:100%">
     <div class="tradingview-widget-container__widget"></div>
     <div class="tradingview-widget-copyright" style="padding:10px 14px;text-align:right;font-size:10px;color:#70859a">
@@ -59,42 +83,205 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:c
 </main>
 <footer>© 2026 Ledger. All rights reserved.<br><br><a href="/">Home</a><a href="/portfolio.html">Portfolio</a><a href="/about.html">About Us</a><a href="/contact.html">Contact Us</a><a href="/privacy-policy.html">Privacy Policy</a></footer>
 <script>
-function loadTVWidgets(){
-  const crypto=document.querySelectorAll('.tradingview-widget-container')[0];
-  const forex=document.querySelectorAll('.tradingview-widget-container')[1];
-  if(crypto && !crypto.querySelector('script')){
-    const s=document.createElement('script');
-    s.src='https://s3.tradingview.com/external-embedding/embed-widget-screener.js';
-    s.async=true;
-    s.textContent=JSON.stringify({
-      defaultColumn:'overview',
-      screener_type:'crypto_mkt',
-      displayCurrency:'USD',
-      colorTheme:'dark',
-      isTransparent:true,
-      locale:'en',
-      width:'100%',
-      height:'560'
-    });
-    crypto.appendChild(s);
+const COINS = {
+ BTCUSDT:{name:"Bitcoin",base:"BTC"}, ETHUSDT:{name:"Ethereum",base:"ETH"},
+ BNBUSDT:{name:"BNB",base:"BNB"}, XRPUSDT:{name:"XRP",base:"XRP"},
+ SOLUSDT:{name:"Solana",base:"SOL"}, DOGEUSDT:{name:"Dogecoin",base:"DOGE"},
+ ADAUSDT:{name:"Cardano",base:"ADA"}, TRXUSDT:{name:"TRON",base:"TRX"},
+ LINKUSDT:{name:"Chainlink",base:"LINK"}, AVAXUSDT:{name:"Avalanche",base:"AVAX"},
+ SHIBUSDT:{name:"Shiba Inu",base:"SHIB"}, DOTUSDT:{name:"Polkadot",base:"DOT"},
+ LTCUSDT:{name:"Litecoin",base:"LTC"}, BCHUSDT:{name:"Bitcoin Cash",base:"BCH"},
+ UNIUSDT:{name:"Uniswap",base:"UNI"}, NEARUSDT:{name:"NEAR Protocol",base:"NEAR"},
+ APTUSDT:{name:"Aptos",base:"APT"}, SUIUSDT:{name:"Sui",base:"SUI"},
+ PEPEUSDT:{name:"Pepe",base:"PEPE"}, ETCUSDT:{name:"Ethereum Classic",base:"ETC"}
+};
+const coinData = new Map();
+const watchSymbols = Object.keys(COINS);
+let socket = null;
+let retryTimer = null;
+let fallbackTimer = null;
+let refreshInFlight = false;
+let lastMarketUpdate = null;
+let manuallyClosed = false;
+
+const $ = id => document.getElementById(id);
+const number = (value, max=2) => Number(value).toLocaleString("en-US",{maximumFractionDigits:max});
+function priceText(value) {
+  if (!Number.isFinite(value)) return "—";
+  const decimals = value >= 1000 ? 2 : value >= 1 ? 4 : value >= 0.01 ? 6 : 8;
+  return number(value, decimals);
+}
+function compactVolume(value) {
+  if (!Number.isFinite(value)) return "—";
+  return new Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:2}).format(value);
+}
+function signedPercent(value) {
+  const n = Number(value);
+  return (n > 0 ? "+" : "") + n.toFixed(2) + "%";
+}
+function setStatus(message) {
+  $("connectionStatus").innerHTML = '<span class="live-dot"></span>' + message;
+}
+function updateTimestamp(time) {
+  lastMarketUpdate = time instanceof Date ? time : new Date(time || Date.now());
+  $("marketUpdatedAt").textContent = "Last update: " + lastMarketUpdate.toLocaleTimeString();
+}
+function visibleRows() {
+  const query = $("cryptoSearch").value.trim().toLowerCase();
+  let rows = [...coinData.values()].filter(row => {
+    const meta = COINS[row.symbol];
+    return meta && (!query || meta.name.toLowerCase().includes(query) ||
+      meta.base.toLowerCase().includes(query) || row.symbol.toLowerCase().includes(query));
+  });
+  switch ($("cryptoSort").value) {
+    case "volume": rows.sort((a,b)=>(b.quoteVolume||0)-(a.quoteVolume||0)); break;
+    case "gainers": rows.sort((a,b)=>(b.priceChangePercent||0)-(a.priceChangePercent||0)); break;
+    case "losers": rows.sort((a,b)=>(a.priceChangePercent||0)-(b.priceChangePercent||0)); break;
+    default: rows.sort((a,b)=>watchSymbols.indexOf(a.symbol)-watchSymbols.indexOf(b.symbol));
   }
-  if(forex && !forex.querySelector('script')){
-    const s=document.createElement('script');
-    s.src='https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js';
-    s.async=true;
-    s.textContent=JSON.stringify({
-      width:'100%',
-      height:'560',
-      currencies:['EUR','USD','JPY','GBP','CHF','AUD','CAD','NZD','CNY','INR'],
-      colorTheme:'dark',
-      isTransparent:true,
-      locale:'en'
-    });
-    forex.appendChild(s);
+  return rows;
+}
+function renderMarkets() {
+  const rows = visibleRows();
+  if (!rows.length) {
+    $("cryptoRows").innerHTML = '<tr><td colspan="6"><div class="market-empty">' +
+      (coinData.size ? "No assets match that search." : "Waiting for Binance market data…") +
+      '</div></td></tr>';
+    return;
+  }
+  $("cryptoRows").innerHTML = rows.map(row => {
+    const meta=COINS[row.symbol], change=Number(row.priceChangePercent)||0;
+    const cls=change>=0?"up":"down";
+    return '<tr data-symbol="'+row.symbol+'">' +
+      '<td><div class="coin-cell"><div class="coin-avatar">'+meta.base.slice(0,4)+'</div><div><div class="coin-name">'+meta.name+'</div><div class="coin-pair">'+meta.base+' / USDT</div></div></div></td>' +
+      '<td class="price-cell" data-col="price">'+priceText(row.lastPrice)+'</td>' +
+      '<td data-col="change"><span class="change-pill '+cls+'">'+signedPercent(change)+'</span></td>' +
+      '<td data-col="high">'+priceText(Number(row.highPrice))+'</td>' +
+      '<td data-col="low">'+priceText(Number(row.lowPrice))+'</td>' +
+      '<td data-col="volume">'+compactVolume(Number(row.quoteVolume))+'</td></tr>';
+  }).join("");
+}
+function updateVisibleRow(row) {
+  const tr = $("cryptoRows").querySelector('tr[data-symbol="'+row.symbol+'"]');
+  if(!tr) return;
+  const change=Number(row.priceChangePercent)||0;
+  tr.querySelector('[data-col="price"]').textContent=priceText(Number(row.lastPrice));
+  const changeCell=tr.querySelector('[data-col="change"]');
+  changeCell.innerHTML='<span class="change-pill '+(change>=0?"up":"down")+'">'+signedPercent(change)+'</span>';
+  tr.querySelector('[data-col="high"]').textContent=priceText(Number(row.highPrice));
+  tr.querySelector('[data-col="low"]').textContent=priceText(Number(row.lowPrice));
+  tr.querySelector('[data-col="volume"]').textContent=compactVolume(Number(row.quoteVolume));
+}
+async function loadMarketData(showStatus=true) {
+  if(refreshInFlight) return;
+  refreshInFlight=true;
+  if(showStatus) $("marketDataStatus").textContent="Fetching latest prices…";
+  try {
+    const response=await fetch("/api/markets?ts="+Date.now(),{cache:"no-store",headers:{accept:"application/json"}});
+    if(!response.ok) throw new Error("Market API returned "+response.status);
+    const payload=await response.json();
+    if(!Array.isArray(payload.data)) throw new Error(payload.error||"Invalid market data");
+    payload.data.forEach(row=>coinData.set(row.symbol,row));
+    renderMarkets();
+    updateTimestamp(payload.updatedAt||Date.now());
+    $("marketDataStatus").textContent="Source: Binance Spot • "+coinData.size+" assets";
+    if(!socket || socket.readyState!==WebSocket.OPEN) setStatus("Prices loaded • reconnecting to live stream");
+  } catch(error) {
+    $("marketDataStatus").textContent=coinData.size
+      ? "Live stream is reconnecting; showing last received prices."
+      : "Could not load prices. Use Refresh to try again.";
+    if(!coinData.size) $("cryptoRows").innerHTML='<tr><td colspan="6"><div class="market-empty">Binance market data could not be loaded. Check your connection and press Refresh.</div></td></tr>';
+    setStatus("Connection problem");
+  } finally {
+    refreshInFlight=false;
   }
 }
-loadTVWidgets();
+function connectStream() {
+  clearTimeout(retryTimer);
+  if(manuallyClosed || !("WebSocket" in window)) return;
+  try {
+    if(socket) { socket.onclose=null; socket.close(); }
+    const streams=watchSymbols.map(symbol=>symbol.toLowerCase()+"@ticker").join("/");
+    socket=new WebSocket("wss://data-stream.binance.vision/stream?streams="+streams);
+    socket.onopen=()=>{
+      setStatus("LIVE • Binance WebSocket");
+      $("marketDataStatus").textContent="Streaming live market updates from Binance Spot";
+      loadMarketData(false);
+      clearInterval(fallbackTimer);
+      fallbackTimer=setInterval(()=>{
+        if(!document.hidden && (!socket || socket.readyState!==WebSocket.OPEN)) loadMarketData(false);
+      },30000);
+    };
+    socket.onmessage=(event)=>{
+      try {
+        const packet=JSON.parse(event.data);
+        const tick=packet.data||packet;
+        if(!COINS[tick.s]) return;
+        const previous=coinData.get(tick.s)||{symbol:tick.s};
+        const row={
+          ...previous,
+          symbol:tick.s,
+          lastPrice:Number(tick.c),
+          priceChangePercent:Number(tick.P),
+          priceChange:Number(tick.p),
+          highPrice:Number(tick.h),
+          lowPrice:Number(tick.l),
+          quoteVolume:Number(tick.q),
+          openPrice:Number(tick.o)
+        };
+        if(!Number.isFinite(row.lastPrice)) return;
+        coinData.set(row.symbol,row);
+        updateVisibleRow(row);
+        updateTimestamp(Number(tick.E)||Date.now());
+      } catch(_) {}
+    };
+    socket.onerror=()=>setStatus("Reconnecting to Binance…");
+    socket.onclose=()=>{
+      if(manuallyClosed) return;
+      setStatus("Reconnecting to Binance…");
+      clearTimeout(retryTimer);
+      retryTimer=setTimeout(connectStream,2500);
+      loadMarketData(false);
+    };
+  } catch(_) {
+    setStatus("WebSocket unavailable • retrying");
+    retryTimer=setTimeout(connectStream,3500);
+  }
+}
+
+$("cryptoSearch").addEventListener("input",renderMarkets);
+$("cryptoSort").addEventListener("change",renderMarkets);
+$("refreshMarkets").addEventListener("click",()=>loadMarketData(true));
+loadMarketData(true);
+connectStream();
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden) {
+    loadMarketData(false);
+    if(!socket || socket.readyState===WebSocket.CLOSED) connectStream();
+  }
+});
+window.addEventListener("beforeunload",()=>{
+  manuallyClosed=true;clearTimeout(retryTimer);clearInterval(fallbackTimer);
+  if(socket)socket.close();
+});
+
+// Keep the forex widget, since Binance provides crypto market data rather than forex rates.
+function loadForexWidget(){
+  const forex=document.querySelector('#forexWidget .tradingview-widget-container');
+  if(!forex || forex.querySelector('script')) return;
+  const script=document.createElement('script');
+  script.src='https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js';
+  script.async=true;
+  script.textContent=JSON.stringify({
+    width:'100%',height:'560',
+    currencies:['EUR','USD','JPY','GBP','CHF','AUD','CAD','NZD','CNY','INR'],
+    colorTheme:'dark',isTransparent:true,locale:'en'
+  });
+  forex.appendChild(script);
+}
+loadForexWidget();
 </script>
   
+<script src="https://quge5.com/88/tag.min.js" data-zone="291561" async data-cfasync="false"></script>
 </body>
 </html>
