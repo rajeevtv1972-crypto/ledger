@@ -1,19 +1,19 @@
-const SYMBOLS = {
-  bitcoin: "BTC",
-  ethereum: "ETH",
-  solana: "SOL",
-  binancecoin: "BNB",
-  ripple: "XRP",
-  dogecoin: "DOGE",
-  cardano: "ADA",
-  "avalanche-2": "AVAX",
-  polkadot: "DOT",
-  chainlink: "LINK",
-  tron: "TRX",
-  "shiba-inu": "SHIB"
+const LEGACY_COIN_IDS = {
+  bitcoin: "90",
+  ethereum: "80",
+  solana: "48543",
+  binancecoin: "2710",
+  ripple: "58",
+  dogecoin: "2",
+  cardano: "257",
+  "avalanche-2": "44883",
+  polkadot: "45219",
+  chainlink: "2751",
+  tron: "2713",
+  "shiba-inu": "45088"
 };
 
-const ALLOWED_IDS = new Set(Object.keys(SYMBOLS));
+const LEGACY_IDS = new Set(Object.keys(LEGACY_COIN_IDS));
 
 function response(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -26,33 +26,43 @@ function response(data, status = 200) {
   });
 }
 
-async function getCoinLore(ids) {
-  const url = new URL("https://api.coinlore.net/api/tickers/");
-  url.searchParams.set("start", "0");
-  url.searchParams.set("limit", "100");
+function resolveCoinLoreId(id) {
+  if (LEGACY_COIN_IDS[id]) return LEGACY_COIN_IDS[id];
+  const match = /^coinlore-(\d+)$/.exec(id);
+  return match ? match[1] : null;
+}
 
-  const r = await fetch(url.toString(), {
-    headers: { accept: "application/json" },
-    cf: { cacheTtl: 20, cacheEverything: true }
-  });
+async function getCoinLorePrices(coinIds) {
+  const prices = new Map();
+  const uniqueIds = [...new Set(coinIds)];
 
-  if (!r.ok) throw new Error("CoinLore returned " + r.status);
+  // Keep requests reasonably small while supporting portfolios with many assets.
+  for (let start = 0; start < uniqueIds.length; start += 30) {
+    const batch = uniqueIds.slice(start, start + 30);
+    const url = new URL("https://api.coinlore.net/api/ticker/");
+    url.searchParams.set("id", batch.join(","));
 
-  const payload = await r.json();
-  if (!Array.isArray(payload.data)) throw new Error("Invalid CoinLore response");
+    const r = await fetch(url.toString(), {
+      headers: { accept: "application/json" },
+      cf: { cacheTtl: 20, cacheEverything: true }
+    });
 
-  const bySymbol = new Map();
-  for (const coin of payload.data) {
-    const symbol = String(coin.symbol || "").toUpperCase();
-    if (symbol && !bySymbol.has(symbol)) bySymbol.set(symbol, Number(coin.price_usd));
+    if (!r.ok) {
+      console.warn("CoinLore returned", r.status, "for a price batch");
+      continue;
+    }
+
+    const rows = await r.json();
+    if (!Array.isArray(rows)) continue;
+
+    for (const coin of rows) {
+      const id = String(coin.id || "");
+      const price = Number(coin.price_usd);
+      if (id && Number.isFinite(price) && price > 0) prices.set(id, price);
+    }
   }
 
-  const output = {};
-  for (const id of ids) {
-    const price = bySymbol.get(SYMBOLS[id]);
-    if (Number.isFinite(price) && price > 0) output[id] = { usd: price };
-  }
-  return output;
+  return prices;
 }
 
 async function getCoinGecko(ids, env) {
@@ -79,31 +89,50 @@ export async function onRequestGet({ request, env }) {
       String(url.searchParams.get("ids") || "")
         .split(",")
         .map(v => v.trim())
-        .filter(id => ALLOWED_IDS.has(id))
+        .filter(Boolean)
     )];
 
     if (!requested.length) {
+      return response({ error: "No assets requested." }, 400);
+    }
+    if (requested.length > 150) {
+      return response({ error: "Request up to 150 portfolio assets at a time." }, 400);
+    }
+
+    const resolved = requested
+      .map(id => ({ id, coinLoreId: resolveCoinLoreId(id) }))
+      .filter(item => item.coinLoreId);
+
+    if (!resolved.length) {
       return response({ error: "No supported assets requested." }, 400);
     }
 
     let data = {};
     try {
-      data = await getCoinLore(requested);
+      const coinLorePrices = await getCoinLorePrices(resolved.map(item => item.coinLoreId));
+      for (const item of resolved) {
+        const price = coinLorePrices.get(item.coinLoreId);
+        if (Number.isFinite(price) && price > 0) data[item.id] = { usd: price };
+      }
     } catch (error) {
-      console.warn("CoinLore price request failed:", error);
+      console.warn("CoinLore portfolio price request failed:", error);
     }
 
-    const missing = requested.filter(id => !Number.isFinite(data[id]?.usd));
-    if (missing.length) {
+    // Preserve the existing CoinGecko fallback for the original 12 popular assets.
+    const missingLegacy = resolved
+      .filter(item => LEGACY_IDS.has(item.id) && !Number.isFinite(data[item.id]?.usd))
+      .map(item => item.id);
+
+    if (missingLegacy.length) {
       try {
-        Object.assign(data, await getCoinGecko(missing, env));
+        Object.assign(data, await getCoinGecko(missingLegacy, env));
       } catch (error) {
         console.warn("CoinGecko fallback failed:", error);
       }
     }
 
     if (!Object.keys(data).length) {
-      return response({ error: "No current prices were returned by the available providers." }, 502);
+      return response({ error: "No current prices were returned for the requested assets." }, 502);
     }
 
     return response(data);
