@@ -80,7 +80,7 @@ button,input,select{font:inherit}button{cursor:pointer}
     <div class="modal-head"><h3>Add a holding</h3><button class="close" id="closeBtn" type="button">×</button></div>
     <div class="field asset-picker-field">
       <label for="assetSearch">Search cryptocurrency</label>
-      <input id="assetSearch" type="search" placeholder="Search 15,000+ coins by name or ticker…" autocomplete="off" spellcheck="false">
+      <input id="assetSearch" type="search" placeholder="Search thousands of coins by name or ticker…" autocomplete="off" spellcheck="false">
       <div class="hint" id="assetSelectionHint">Choose a cryptocurrency from the results below.</div>
       <div class="asset-search-results" id="assetResults" role="listbox" aria-label="Cryptocurrency search results" aria-live="polite"></div>
     </div>
@@ -197,13 +197,8 @@ async function searchAssets(query){
     if(!response.ok)throw new Error("Asset search returned "+response.status);
     const payload=await response.json();
     if(!Array.isArray(payload.data))throw new Error(payload.error||"Invalid asset directory response");
-    const existingIds=new Set(holdings.map(h=>h.id));
-    const results=payload.data.filter(coin=>{
-      const legacy=LEGACY_COIN_ID_TO_ASSET_ID[String(coin.id)];
-      const id=legacy||("coinlore-"+coin.id);
-      return !existingIds.has(id);
-    });
-    showAssetResults(results);
+    // Keep already-held assets searchable so users can add to an existing position.
+    showAssetResults(payload.data);
   }catch(error){
     if(error.name==="AbortError")return;
     console.error("Ledger asset search failed:",error);
