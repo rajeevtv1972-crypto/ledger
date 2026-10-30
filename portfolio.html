@@ -54,7 +54,7 @@ button,input,select{font:inherit}button{cursor:pointer}
   <section class="section">
     <div class="section-head">
       <h2>Your holdings</h2>
-      <div class="status" id="priceStatus">Connecting to live prices…</div>
+      <div class="status" id="priceStatus">Connecting to CoinLore market data…</div>
     </div>
     <div class="table-wrap">
       <table class="table">
@@ -150,117 +150,40 @@ function render(){
   document.querySelectorAll(".remove").forEach(btn=>btn.addEventListener("click",()=>{holdings.splice(Number(btn.dataset.index),1);saveAndRender();toast("Holding removed.")}));
 }
 
-const WS_SYMBOLS = {
-  bitcoin:"btcusdt", ethereum:"ethusdt", solana:"solusdt", binancecoin:"bnbusdt",
-  ripple:"xrpusdt", dogecoin:"dogeusdt", cardano:"adausdt", "avalanche-2":"avaxusdt",
-  polkadot:"dotusdt", chainlink:"linkusdt", tron:"trxusdt", "shiba-inu":"shibusdt"
-};
-let priceSocket=null;
-let socketRetryTimer=null;
-let socketManuallyClosed=false;
-
-function getLiveIds(){
-  return [...new Set(holdings.map(h=>h.id))].filter(id=>WS_SYMBOLS[id]);
-}
-
 async function refreshPrices(){
   if(refreshInFlight)return;
   if(!holdings.length){
     document.getElementById("priceStatus").textContent="Add a holding to load prices";
     return;
   }
+
   refreshInFlight=true;
-  document.getElementById("priceStatus").textContent=priceSocket?.readyState===WebSocket.OPEN
-    ?"Live stream connected"
-    :"Loading latest prices…";
+  document.getElementById("priceStatus").textContent="Loading CoinLore prices…";
   try{
     const ids=[...new Set(holdings.map(h=>h.id))].join(",");
-    const response=await fetch("/api/prices?ids="+encodeURIComponent(ids),{
+    const response=await fetch("/api/prices?ids="+encodeURIComponent(ids)+"&ts="+Date.now(),{
       cache:"no-store",
       headers:{accept:"application/json"}
     });
     if(!response.ok)throw new Error("Price service returned "+response.status);
+
     const data=await response.json();
-    if(data && !data.error){
-      prices={...prices,...data};
-      lastUpdated=new Date();
-      document.getElementById("priceStatus").textContent=
-        priceSocket?.readyState===WebSocket.OPEN
-          ?"LIVE • WebSocket • "+lastUpdated.toLocaleTimeString()
-          :"Updated • fallback • "+lastUpdated.toLocaleTimeString();
-      render();
-    }
+    if(!data||data.error||!Object.keys(data).length)throw new Error(data?.error||"No prices returned");
+
+    prices={...prices,...data};
+    lastUpdated=new Date();
+    document.getElementById("priceStatus").textContent=
+      "CoinLore prices • Updated "+lastUpdated.toLocaleTimeString();
+    render();
   }catch(error){
-    if(!lastUpdated){
-      document.getElementById("priceStatus").textContent="Unable to load prices — retrying…";
-      toast("Could not load market prices right now.",true);
-    }
+    console.error("Ledger portfolio price refresh failed:",error);
+    document.getElementById("priceStatus").textContent=lastUpdated
+      ?"Refresh failed • Showing last prices from "+lastUpdated.toLocaleTimeString()
+      :"Price service unavailable • Retrying…";
+    if(!lastUpdated)toast("Could not load market prices right now.",true);
   }finally{
     refreshInFlight=false;
   }
-}
-
-function connectPriceStream(){
-  clearTimeout(socketRetryTimer);
-  if(socketManuallyClosed || !holdings.length || !("WebSocket" in window)) return;
-
-  const streams=getLiveIds().map(id=>WS_SYMBOLS[id]+"@ticker").join("/");
-  if(!streams){
-    refreshPrices();
-    return;
-  }
-
-  try{
-    if(priceSocket){
-      priceSocket.onclose=null;
-      priceSocket.close();
-    }
-
-    priceSocket=new WebSocket(
-      "wss://stream.binance.com:9443/stream?streams="+encodeURIComponent(streams)
-    );
-
-    priceSocket.onopen=()=>{
-      document.getElementById("priceStatus").textContent="LIVE • WebSocket connected";
-      refreshPrices();
-    };
-
-    priceSocket.onmessage=(event)=>{
-      try{
-        const packet=JSON.parse(event.data);
-        const tick=packet.data || packet;
-        const symbol=String(tick.s||"").toLowerCase();
-        const id=Object.keys(WS_SYMBOLS).find(key=>WS_SYMBOLS[key]===symbol);
-        const price=Number(tick.c);
-        if(!id || !Number.isFinite(price)) return;
-
-        prices[id]={usd:price};
-        lastUpdated=new Date(Number(tick.E)||Date.now());
-        document.getElementById("priceStatus").textContent=
-          "LIVE • WebSocket • "+lastUpdated.toLocaleTimeString();
-        render();
-      }catch(_){}
-    };
-
-    priceSocket.onerror=()=>{
-      document.getElementById("priceStatus").textContent="Reconnecting to live prices…";
-    };
-
-    priceSocket.onclose=()=>{
-      if(socketManuallyClosed)return;
-      document.getElementById("priceStatus").textContent="Reconnecting to live prices…";
-      clearTimeout(socketRetryTimer);
-      socketRetryTimer=setTimeout(connectPriceStream,2000);
-    };
-  }catch(_){
-    clearTimeout(socketRetryTimer);
-    socketRetryTimer=setTimeout(connectPriceStream,3000);
-  }
-}
-
-function restartPriceStream(){
-  socketManuallyClosed=false;
-  connectPriceStream();
 }
 
 
@@ -287,10 +210,8 @@ document.getElementById("saveBtn").addEventListener("click",()=>{
 
 render();
 refreshPrices();
-connectPriceStream();
-setInterval(()=>{ if(!document.hidden && (!priceSocket || priceSocket.readyState!==WebSocket.OPEN)) refreshPrices(); },30000);
-document.addEventListener("visibilitychange",()=>{if(!document.hidden){refreshPrices();restartPriceStream()}});
-window.addEventListener("beforeunload",()=>{socketManuallyClosed=true;clearTimeout(socketRetryTimer);if(priceSocket)priceSocket.close()});
+setInterval(()=>{if(!document.hidden)refreshPrices()},30000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshPrices()});
 </script>
   
 </body>
