@@ -19,7 +19,7 @@ main{max-width:1280px;margin:0 auto;padding:42px 5vw 75px}.eyebrow{color:#78e2c3
 .market-button{border:0;border-radius:11px;background:var(--accent);color:#06111b;padding:11px 14px;font-weight:850;cursor:pointer}.market-button:hover{filter:brightness(.94)}
 .market-table-wrap{overflow:auto}.market-table{border-collapse:collapse;width:100%;min-width:780px}.market-table th,.market-table td{padding:15px 18px;border-bottom:1px solid rgba(255,255,255,.055);text-align:right;white-space:nowrap;font-size:13px}.market-table th{color:#758da3;text-transform:uppercase;letter-spacing:.08em;font-size:10px;background:#081725}.market-table th:first-child,.market-table td:first-child{text-align:left}.market-table tbody tr:hover{background:rgba(255,255,255,.025)}
 .coin-cell{display:flex;align-items:center;gap:11px;min-width:160px}.coin-avatar{width:36px;height:36px;border:1px solid #25435b;border-radius:12px;background:#10263a;color:#b5f3df;display:grid;place-items:center;font-size:11px;font-weight:900}.coin-name{font-weight:850;color:#edf5fa}.coin-pair{font-size:10px;color:#74899e;margin-top:3px}.price-cell{font-variant-numeric:tabular-nums;font-weight:800}.up{color:#31d7a3!important}.down{color:#ff8392!important}.change-pill{display:inline-block;min-width:78px;text-align:center;padding:6px 8px;border-radius:8px;font-size:11px;font-weight:850;background:rgba(49,215,163,.09)}.change-pill.down{background:rgba(255,131,146,.09)}
-.market-status{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:13px 20px;color:#7f96aa;font-size:11px}.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#31d7a3;box-shadow:0 0 10px rgba(49,215,163,.55);margin-right:7px}.market-empty{padding:40px 18px;text-align:center;color:#8498ac;font-size:13px}
+.market-status{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:13px 20px;color:#7f96aa;font-size:11px}.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#31d7a3;box-shadow:0 0 10px rgba(49,215,163,.55);margin-right:7px}.market-empty{padding:40px 18px;text-align:center;color:#8498ac;font-size:13px}.change-pill.neutral{background:rgba(143,163,184,.10);color:#9aafc2}.market-table th,.market-table td{min-width:94px}.market-table th:first-child,.market-table td:first-child{min-width:185px}
 #forexWidget{min-height:520px}
 @media(max-width:700px){.market-toolbar{padding:13px}.market-search,.market-sort,.market-button{width:100%}.market-table th,.market-table td{padding:13px 14px}.market-status{padding:13px}}
 footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:center;color:#71859a;font-size:12px;background:#02070f}footer a{color:#b9eede;text-decoration:none;margin:0 8px}
@@ -38,14 +38,14 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:c
 <section class="hero">
 <div class="eyebrow">Live market centre</div>
 <h1>Crypto & Forex, in real time.</h1>
-<p>Track cryptocurrency prices, 24-hour movement, daily highs and lows, and trading volume using Binance public market data. The forex cross-rate widget remains available below.</p>
-<div class="note">Crypto quotes are streamed from Binance Spot public market data with no API key. Prices are quoted in USDT pairs. Forex cross-rates below are still provided by TradingView.</div>
+<p>Track crypto prices, hourly and daily movements, market capitalization and trading volume. Crypto data is supplied by CoinLore and the page requests a fresh market snapshot every 30 seconds. Forex cross-rates remain below.</p>
+<div class="note">Crypto prices use CoinLore's free public market-data API through Ledger's Cloudflare endpoint. Values are shown in USD and periodically refreshed; they are aggregated market data, not exchange tick-by-tick quotes. Forex cross-rates below are provided by TradingView.</div>
 </section>
 
 <section class="panel" id="cryptoMarket">
 <div class="panel-head">
   <h2>₿ Crypto market</h2>
-  <span id="connectionStatus"><span class="live-dot"></span>Connecting to Binance…</span>
+  <span id="connectionStatus"><span class="live-dot"></span>Connecting to CoinLore…</span>
 </div>
 <div class="market-toolbar">
   <input class="market-search" id="cryptoSearch" type="search" placeholder="Search coins or symbols…" aria-label="Search crypto markets">
@@ -59,12 +59,12 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:c
 </div>
 <div class="market-table-wrap">
   <table class="market-table">
-    <thead><tr><th>Asset</th><th>Last price (USDT)</th><th>24h change</th><th>24h high</th><th>24h low</th><th>24h volume (USDT)</th></tr></thead>
-    <tbody id="cryptoRows"><tr><td colspan="6"><div class="market-empty">Loading live Binance market data…</div></td></tr></tbody>
+    <thead><tr><th>Asset</th><th>Price (USD)</th><th>1h change</th><th>24h change</th><th>7d change</th><th>Market cap</th><th>24h volume</th></tr></thead>
+    <tbody id="cryptoRows"><tr><td colspan="6"><div class="market-empty">Loading live market snapshot…</div></td></tr></tbody>
   </table>
 </div>
 <div class="market-status">
-  <span id="marketDataStatus">Waiting for latest market data…</span>
+  <span id="marketDataStatus">Waiting for the latest market snapshot…</span>
   <span id="marketUpdatedAt">—</span>
 </div>
 </section>
@@ -97,155 +97,106 @@ const COINS = {
 };
 const coinData = new Map();
 const watchSymbols = Object.keys(COINS);
-let socket = null;
-let retryTimer = null;
-let fallbackTimer = null;
-let refreshInFlight = false;
-let lastMarketUpdate = null;
-let manuallyClosed = false;
+let refreshInFlight=false;
+let lastSnapshotAt=null;
+let lastRequestAt=0;
+const $=id=>document.getElementById(id);
 
-const $ = id => document.getElementById(id);
-const number = (value, max=2) => Number(value).toLocaleString("en-US",{maximumFractionDigits:max});
-function priceText(value) {
-  if (!Number.isFinite(value)) return "—";
-  const decimals = value >= 1000 ? 2 : value >= 1 ? 4 : value >= 0.01 ? 6 : 8;
-  return number(value, decimals);
+function number(value,max=2){
+  const n=Number(value);
+  return Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:max}):"—";
 }
-function compactVolume(value) {
-  if (!Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:2}).format(value);
+function priceText(value){
+  const n=Number(value);
+  if(!Number.isFinite(n)||n<=0)return "—";
+  const decimals=n>=1000?2:n>=1?4:n>=0.01?6:8;
+  return "$"+number(n,decimals);
 }
-function signedPercent(value) {
-  const n = Number(value);
-  return (n > 0 ? "+" : "") + n.toFixed(2) + "%";
+function compactUSD(value){
+  const n=Number(value);
+  if(!Number.isFinite(n)||n<0)return "—";
+  return "$"+new Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:2}).format(n);
 }
-function setStatus(message) {
-  $("connectionStatus").innerHTML = '<span class="live-dot"></span>' + message;
+function percentText(value){
+  const n=Number(value);
+  if(!Number.isFinite(n))return "—";
+  return (n>0?"+":"")+n.toFixed(2)+"%";
 }
-function updateTimestamp(time) {
-  lastMarketUpdate = time instanceof Date ? time : new Date(time || Date.now());
-  $("marketUpdatedAt").textContent = "Last update: " + lastMarketUpdate.toLocaleTimeString();
+function changePill(value){
+  const n=Number(value);
+  if(!Number.isFinite(n))return '<span class="change-pill neutral">—</span>';
+  return '<span class="change-pill '+(n>0?"up":n<0?"down":"neutral")+'">'+percentText(n)+'</span>';
 }
-function visibleRows() {
-  const query = $("cryptoSearch").value.trim().toLowerCase();
-  let rows = [...coinData.values()].filter(row => {
-    const meta = COINS[row.symbol];
-    return meta && (!query || meta.name.toLowerCase().includes(query) ||
-      meta.base.toLowerCase().includes(query) || row.symbol.toLowerCase().includes(query));
+function setConnection(message,ok=false){
+  $("connectionStatus").innerHTML='<span class="live-dot" style="background:'+(ok?"#31d7a3":"#f2bb68")+'"></span>'+message;
+}
+function visibleRows(){
+  const query=$("cryptoSearch").value.trim().toLowerCase();
+  let rows=[...coinData.values()].filter(row=>{
+    const meta=COINS[row.symbol];
+    return meta&&(!query||meta.name.toLowerCase().includes(query)||meta.base.toLowerCase().includes(query)||row.symbol.toLowerCase().includes(query));
   });
-  switch ($("cryptoSort").value) {
-    case "volume": rows.sort((a,b)=>(b.quoteVolume||0)-(a.quoteVolume||0)); break;
-    case "gainers": rows.sort((a,b)=>(b.priceChangePercent||0)-(a.priceChangePercent||0)); break;
-    case "losers": rows.sort((a,b)=>(a.priceChangePercent||0)-(b.priceChangePercent||0)); break;
+  switch($("cryptoSort").value){
+    case "volume": rows.sort((a,b)=>(b.quoteVolume||0)-(a.quoteVolume||0));break;
+    case "gainers": rows.sort((a,b)=>(b.priceChangePercent||0)-(a.priceChangePercent||0));break;
+    case "losers": rows.sort((a,b)=>(a.priceChangePercent||0)-(b.priceChangePercent||0));break;
     default: rows.sort((a,b)=>watchSymbols.indexOf(a.symbol)-watchSymbols.indexOf(b.symbol));
   }
   return rows;
 }
-function renderMarkets() {
-  const rows = visibleRows();
-  if (!rows.length) {
-    $("cryptoRows").innerHTML = '<tr><td colspan="6"><div class="market-empty">' +
-      (coinData.size ? "No assets match that search." : "Waiting for Binance market data…") +
-      '</div></td></tr>';
+function renderMarkets(){
+  const rows=visibleRows();
+  if(!rows.length){
+    $("cryptoRows").innerHTML='<tr><td colspan="7"><div class="market-empty">'+(coinData.size?"No assets match that search.":"Waiting for market data…")+'</div></td></tr>';
     return;
   }
-  $("cryptoRows").innerHTML = rows.map(row => {
-    const meta=COINS[row.symbol], change=Number(row.priceChangePercent)||0;
-    const cls=change>=0?"up":"down";
-    return '<tr data-symbol="'+row.symbol+'">' +
-      '<td><div class="coin-cell"><div class="coin-avatar">'+meta.base.slice(0,4)+'</div><div><div class="coin-name">'+meta.name+'</div><div class="coin-pair">'+meta.base+' / USDT</div></div></div></td>' +
-      '<td class="price-cell" data-col="price">'+priceText(row.lastPrice)+'</td>' +
-      '<td data-col="change"><span class="change-pill '+cls+'">'+signedPercent(change)+'</span></td>' +
-      '<td data-col="high">'+priceText(Number(row.highPrice))+'</td>' +
-      '<td data-col="low">'+priceText(Number(row.lowPrice))+'</td>' +
-      '<td data-col="volume">'+compactVolume(Number(row.quoteVolume))+'</td></tr>';
+  $("cryptoRows").innerHTML=rows.map(row=>{
+    const meta=COINS[row.symbol];
+    return '<tr data-symbol="'+row.symbol+'">'+
+      '<td><div class="coin-cell"><div class="coin-avatar">'+meta.base.slice(0,4)+'</div><div><div class="coin-name">'+meta.name+'</div><div class="coin-pair">'+meta.base+' / USD</div></div></div></td>'+
+      '<td class="price-cell">'+priceText(row.lastPrice)+'</td>'+
+      '<td>'+changePill(row.change1h)+'</td>'+
+      '<td>'+changePill(row.priceChangePercent)+'</td>'+
+      '<td>'+changePill(row.change7d)+'</td>'+
+      '<td>'+compactUSD(row.marketCap)+'</td>'+
+      '<td>'+compactUSD(row.quoteVolume)+'</td></tr>';
   }).join("");
 }
-function updateVisibleRow(row) {
-  const tr = $("cryptoRows").querySelector('tr[data-symbol="'+row.symbol+'"]');
-  if(!tr) return;
-  const change=Number(row.priceChangePercent)||0;
-  tr.querySelector('[data-col="price"]').textContent=priceText(Number(row.lastPrice));
-  const changeCell=tr.querySelector('[data-col="change"]');
-  changeCell.innerHTML='<span class="change-pill '+(change>=0?"up":"down")+'">'+signedPercent(change)+'</span>';
-  tr.querySelector('[data-col="high"]').textContent=priceText(Number(row.highPrice));
-  tr.querySelector('[data-col="low"]').textContent=priceText(Number(row.lowPrice));
-  tr.querySelector('[data-col="volume"]').textContent=compactVolume(Number(row.quoteVolume));
-}
-async function loadMarketData(showStatus=true) {
-  if(refreshInFlight) return;
+async function loadMarketData(showStatus=true){
+  if(refreshInFlight)return;
   refreshInFlight=true;
-  if(showStatus) $("marketDataStatus").textContent="Fetching latest prices…";
-  try {
-    const response=await fetch("/api/markets?ts="+Date.now(),{cache:"no-store",headers:{accept:"application/json"}});
-    if(!response.ok) throw new Error("Market API returned "+response.status);
+  lastRequestAt=Date.now();
+  if(showStatus)$("marketDataStatus").textContent="Fetching a fresh CoinLore snapshot…";
+  try{
+    const response=await fetch("/api/markets?ts="+Date.now(),{
+      cache:"no-store",
+      headers:{accept:"application/json"}
+    });
+    if(!response.ok)throw new Error("Market API returned "+response.status);
     const payload=await response.json();
-    if(!Array.isArray(payload.data)) throw new Error(payload.error||"Invalid market data");
-    payload.data.forEach(row=>coinData.set(row.symbol,row));
+    if(!Array.isArray(payload.data)||!payload.data.length)throw new Error(payload.error||"No market data returned");
+    coinData.clear();
+    payload.data.forEach(row=>{
+      if(COINS[row.symbol]&&Number.isFinite(Number(row.lastPrice)))coinData.set(row.symbol,row);
+    });
+    if(!coinData.size)throw new Error("No supported assets were returned");
     renderMarkets();
-    updateTimestamp(payload.updatedAt||Date.now());
-    $("marketDataStatus").textContent="Source: Binance Spot • "+coinData.size+" assets";
-    if(!socket || socket.readyState!==WebSocket.OPEN) setStatus("Prices loaded • reconnecting to live stream");
-  } catch(error) {
-    $("marketDataStatus").textContent=coinData.size
-      ? "Live stream is reconnecting; showing last received prices."
-      : "Could not load prices. Use Refresh to try again.";
-    if(!coinData.size) $("cryptoRows").innerHTML='<tr><td colspan="6"><div class="market-empty">Binance market data could not be loaded. Check your connection and press Refresh.</div></td></tr>';
-    setStatus("Connection problem");
-  } finally {
+    lastSnapshotAt=Number(payload.updatedAt)||Date.now();
+    $("marketDataStatus").textContent="Source: CoinLore • "+coinData.size+" assets • auto-refresh every 30 seconds";
+    $("marketUpdatedAt").textContent="Snapshot: "+new Date(lastSnapshotAt).toLocaleTimeString();
+    setConnection("CoinLore market data connected",true);
+  }catch(error){
+    console.error("Ledger market refresh failed:",error);
+    if(coinData.size){
+      $("marketDataStatus").textContent="Refresh failed — displaying the last successful snapshot.";
+      setConnection("Using last available prices");
+    }else{
+      $("marketDataStatus").textContent="Unable to load prices. Press Refresh to retry.";
+      $("cryptoRows").innerHTML='<tr><td colspan="7"><div class="market-empty">Market data is temporarily unavailable. Please press Refresh to try again.</div></td></tr>';
+      setConnection("Market data unavailable");
+    }
+  }finally{
     refreshInFlight=false;
-  }
-}
-function connectStream() {
-  clearTimeout(retryTimer);
-  if(manuallyClosed || !("WebSocket" in window)) return;
-  try {
-    if(socket) { socket.onclose=null; socket.close(); }
-    const streams=watchSymbols.map(symbol=>symbol.toLowerCase()+"@ticker").join("/");
-    socket=new WebSocket("wss://data-stream.binance.vision/stream?streams="+streams);
-    socket.onopen=()=>{
-      setStatus("LIVE • Binance WebSocket");
-      $("marketDataStatus").textContent="Streaming live market updates from Binance Spot";
-      loadMarketData(false);
-      clearInterval(fallbackTimer);
-      fallbackTimer=setInterval(()=>{
-        if(!document.hidden && (!socket || socket.readyState!==WebSocket.OPEN)) loadMarketData(false);
-      },30000);
-    };
-    socket.onmessage=(event)=>{
-      try {
-        const packet=JSON.parse(event.data);
-        const tick=packet.data||packet;
-        if(!COINS[tick.s]) return;
-        const previous=coinData.get(tick.s)||{symbol:tick.s};
-        const row={
-          ...previous,
-          symbol:tick.s,
-          lastPrice:Number(tick.c),
-          priceChangePercent:Number(tick.P),
-          priceChange:Number(tick.p),
-          highPrice:Number(tick.h),
-          lowPrice:Number(tick.l),
-          quoteVolume:Number(tick.q),
-          openPrice:Number(tick.o)
-        };
-        if(!Number.isFinite(row.lastPrice)) return;
-        coinData.set(row.symbol,row);
-        updateVisibleRow(row);
-        updateTimestamp(Number(tick.E)||Date.now());
-      } catch(_) {}
-    };
-    socket.onerror=()=>setStatus("Reconnecting to Binance…");
-    socket.onclose=()=>{
-      if(manuallyClosed) return;
-      setStatus("Reconnecting to Binance…");
-      clearTimeout(retryTimer);
-      retryTimer=setTimeout(connectStream,2500);
-      loadMarketData(false);
-    };
-  } catch(_) {
-    setStatus("WebSocket unavailable • retrying");
-    retryTimer=setTimeout(connectStream,3500);
   }
 }
 
@@ -253,29 +204,28 @@ $("cryptoSearch").addEventListener("input",renderMarkets);
 $("cryptoSort").addEventListener("change",renderMarkets);
 $("refreshMarkets").addEventListener("click",()=>loadMarketData(true));
 loadMarketData(true);
-connectStream();
+
+// Poll the aggregate provider; no Binance WebSocket is used because Binance
+// returns HTTP 403 from this site's Cloudflare runtime.
+setInterval(()=>{
+  if(!document.hidden)loadMarketData(false);
+},30000);
+
 document.addEventListener("visibilitychange",()=>{
-  if(!document.hidden) {
-    loadMarketData(false);
-    if(!socket || socket.readyState===WebSocket.CLOSED) connectStream();
-  }
-});
-window.addEventListener("beforeunload",()=>{
-  manuallyClosed=true;clearTimeout(retryTimer);clearInterval(fallbackTimer);
-  if(socket)socket.close();
+  if(!document.hidden&&Date.now()-lastRequestAt>15000)loadMarketData(false);
 });
 
-// Keep the forex widget, since Binance provides crypto market data rather than forex rates.
+// Keep the forex widget as Binance/CoinLore crypto sources do not provide forex.
 function loadForexWidget(){
-  const forex=document.querySelector('#forexWidget .tradingview-widget-container');
-  if(!forex || forex.querySelector('script')) return;
-  const script=document.createElement('script');
-  script.src='https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js';
+  const forex=document.querySelector("#forexWidget .tradingview-widget-container");
+  if(!forex||forex.querySelector("script"))return;
+  const script=document.createElement("script");
+  script.src="https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js";
   script.async=true;
   script.textContent=JSON.stringify({
-    width:'100%',height:'560',
-    currencies:['EUR','USD','JPY','GBP','CHF','AUD','CAD','NZD','CNY','INR'],
-    colorTheme:'dark',isTransparent:true,locale:'en'
+    width:"100%",height:"560",
+    currencies:["EUR","USD","JPY","GBP","CHF","AUD","CAD","NZD","CNY","INR"],
+    colorTheme:"dark",isTransparent:true,locale:"en"
   });
   forex.appendChild(script);
 }
