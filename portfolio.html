@@ -19,7 +19,14 @@ button,input,select{font:inherit}button{cursor:pointer}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:30px}.card{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(13,32,52,.92),rgba(9,24,40,.96));padding:22px;box-shadow:var(--shadow)}.label{color:#8195aa;font-size:12px}.value{margin-top:8px;font-size:30px;font-weight:900;letter-spacing:-.03em}.sub{margin-top:5px;font-size:11px;color:#687d94}
 .section{margin-top:22px;border:1px solid var(--line);border-radius:22px;overflow:hidden;background:rgba(8,22,37,.88)}.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.07)}.section-head h2{font-size:18px;margin:0}.status{font-size:11px;color:#83e1c6}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:780px}.table th,.table td{padding:15px 18px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06)}.table th{color:#6f8298;font-size:10px;text-transform:uppercase;letter-spacing:.08em}.table td{font-size:13px}.asset{display:flex;align-items:center;gap:11px}.coin{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:#132a42;font-size:12px;font-weight:900;color:#9fe8d4}.asset-name{font-weight:850}.asset-symbol{font-size:11px;color:#6f8398;margin-top:2px;text-transform:uppercase}.positive{color:var(--accent)}.negative{color:var(--red)}.muted{color:#71859a}.empty{padding:52px 20px;text-align:center;color:#74899e}.empty strong{display:block;color:#dbe7f0;font-size:17px;margin-bottom:8px}
 .footer-note{margin-top:18px;color:#62768c;text-align:center;font-size:11px;line-height:1.5}
-.modal-backdrop{position:fixed;inset:0;z-index:30;background:rgba(2,8,15,.72);display:none;place-items:center;padding:22px}.modal-backdrop.open{display:grid}.modal{width:min(520px,100%);border:1px solid #29455d;border-radius:22px;background:#0b1c2f;box-shadow:0 30px 100px rgba(0,0,0,.48);padding:24px}.modal-head{display:flex;justify-content:space-between;align-items:center}.modal h3{margin:0;font-size:22px}.close{border:0;background:transparent;color:#8599ae;font-size:25px}.field{margin-top:16px}.field label{display:block;font-size:12px;font-weight:800;color:#ced9e4;margin-bottom:8px}.field input,.field select{width:100%;padding:12px 13px;border:1px solid #294158;background:#071522;color:#fff;border-radius:12px;outline:none}.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(49,215,163,.1)}.hint{font-size:10px;color:#6f8397;margin-top:6px}.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+.modal-backdrop{position:fixed;inset:0;z-index:30;background:rgba(2,8,15,.72);display:none;place-items:center;padding:22px}.modal-backdrop.open{display:grid}.modal{width:min(520px,100%);max-height:calc(100vh - 44px);overflow-y:auto;border:1px solid #29455d;border-radius:22px;background:#0b1c2f;box-shadow:0 30px 100px rgba(0,0,0,.48);padding:24px}.modal-head{display:flex;justify-content:space-between;align-items:center}.modal h3{margin:0;font-size:22px}.close{border:0;background:transparent;color:#8599ae;font-size:25px}.field{margin-top:16px}.field label{display:block;font-size:12px;font-weight:800;color:#ced9e4;margin-bottom:8px}.field input,.field select{width:100%;padding:12px 13px;border:1px solid #294158;background:#071522;color:#fff;border-radius:12px;outline:none}.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(49,215,163,.1)}.hint{font-size:10px;color:#6f8397;margin-top:6px}
+.asset-search-results{margin-top:9px;max-height:230px;overflow-y:auto;border:1px solid #294158;border-radius:12px;background:#071522}
+.asset-search-results:empty{display:none}
+.asset-option{width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 12px;border:0;border-bottom:1px solid rgba(255,255,255,.055);background:transparent;color:#edf5fa;text-align:left;cursor:pointer}
+.asset-option:last-child{border-bottom:0}.asset-option:hover,.asset-option:focus{background:#112b40;outline:none}
+.asset-option-name{font-size:12px;font-weight:800}.asset-option-symbol{font-size:10px;color:#7f96aa;margin-top:3px}.asset-option-rank{font-size:10px;color:#8ba3b9;white-space:nowrap}
+.asset-results-message{padding:13px;color:#8095a9;font-size:11px;line-height:1.5}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
 .toast{position:fixed;right:20px;bottom:20px;z-index:50;padding:12px 15px;border-radius:12px;border:1px solid #29445c;background:#0b1b2e;color:#e9f1f6;box-shadow:0 20px 50px rgba(0,0,0,.35);font-size:12px;display:none}.toast.show{display:block}.toast.error{border-color:#6b3040;color:#ffc4cc}
 @media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}.hero{display:block}.actions{margin-top:18px}}
 @media(max-width:620px){.top{padding:0 18px}.local-pill{display:none}.main{padding:30px 18px 60px}.grid{grid-template-columns:1fr}.card{padding:19px}.section-head{align-items:flex-start;flex-direction:column}.primary,.secondary{width:100%}.actions{display:grid;grid-template-columns:1fr}}
@@ -61,7 +68,7 @@ button,input,select{font:inherit}button{cursor:pointer}
         <thead><tr><th>Asset</th><th>Amount</th><th>Avg. buy price</th><th>Current price</th><th>Value</th><th>P/L</th><th></th></tr></thead>
         <tbody id="holdingsBody"></tbody>
       </table>
-      <div class="empty" id="emptyState"><strong>Your local portfolio is empty.</strong>Add BTC, ETH, SOL or another supported asset. </div>
+      <div class="empty" id="emptyState"><strong>Your local portfolio is empty.</strong>Add BTC, ETH, SOL or search the full cryptocurrency directory. </div>
     </div>
   </section>
 
@@ -71,21 +78,11 @@ button,input,select{font:inherit}button{cursor:pointer}
 <div class="modal-backdrop" id="modal">
   <div class="modal">
     <div class="modal-head"><h3>Add a holding</h3><button class="close" id="closeBtn" type="button">×</button></div>
-    <div class="field"><label for="asset">Asset</label>
-      <select id="asset">
-        <option value="bitcoin">Bitcoin (BTC)</option>
-        <option value="ethereum">Ethereum (ETH)</option>
-        <option value="solana">Solana (SOL)</option>
-        <option value="binancecoin">BNB</option>
-        <option value="ripple">XRP</option>
-        <option value="dogecoin">Dogecoin (DOGE)</option>
-        <option value="cardano">Cardano (ADA)</option>
-        <option value="avalanche-2">Avalanche (AVAX)</option>
-        <option value="polkadot">Polkadot (DOT)</option>
-        <option value="chainlink">Chainlink (LINK)</option>
-        <option value="tron">TRON (TRX)</option>
-        <option value="shiba-inu">Shiba Inu (SHIB)</option>
-      </select>
+    <div class="field asset-picker-field">
+      <label for="assetSearch">Search cryptocurrency</label>
+      <input id="assetSearch" type="search" placeholder="Search 15,000+ coins by name or ticker…" autocomplete="off" spellcheck="false">
+      <div class="hint" id="assetSelectionHint">Choose a cryptocurrency from the results below.</div>
+      <div class="asset-search-results" id="assetResults" role="listbox" aria-label="Cryptocurrency search results" aria-live="polite"></div>
     </div>
     <div class="field"><label for="amount">Amount</label><input id="amount" type="number" min="0" step="any" placeholder="0.00"></div>
     <div class="field"><label for="buyPrice">Average buy price (USD)</label><input id="buyPrice" type="number" min="0" step="any" placeholder="0.00"><div class="hint">Enter the price you paid per coin. Ledger calculates invested value and P/L from this.</div></div>
@@ -106,6 +103,15 @@ let holdings=loadHoldings();
 let prices={};
 let lastUpdated=null;
 let refreshInFlight=false;
+let selectedAsset=null;
+let assetSearchTimer=null;
+let assetSearchController=null;
+
+const LEGACY_COIN_ID_TO_ASSET_ID={
+  "90":"bitcoin","80":"ethereum","48543":"solana","2710":"binancecoin",
+  "58":"ripple","2":"dogecoin","257":"cardano","44883":"avalanche-2",
+  "45219":"polkadot","2751":"chainlink","2713":"tron","45088":"shiba-inu"
+};
 
 function loadHoldings(){
   try{const value=JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]");return Array.isArray(value)?value:[]}
@@ -116,8 +122,94 @@ function money(v){return new Intl.NumberFormat("en-US",{style:"currency",currenc
 function num(v,max=8){const n=Number(v);return Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:max}):"0"}
 function toast(message,error=false){const el=document.getElementById("toast");el.textContent=message;el.className="toast show"+(error?" error":"");clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.className="toast",2800)}
 function saveAndRender(){persist();render()}
-function openModal(){document.getElementById("modal").classList.add("open");document.getElementById("amount").focus()}
-function closeModal(){document.getElementById("modal").classList.remove("open");document.getElementById("amount").value="";document.getElementById("buyPrice").value=""}
+function openModal(){
+  document.getElementById("modal").classList.add("open");
+  document.getElementById("assetSearch").value="";
+  document.getElementById("assetSelectionHint").textContent="Choose a cryptocurrency from the results below.";
+  selectedAsset=null;
+  searchAssets("");
+  document.getElementById("amount").focus();
+}
+function closeModal(){
+  document.getElementById("modal").classList.remove("open");
+  document.getElementById("amount").value="";
+  document.getElementById("buyPrice").value="";
+  document.getElementById("assetSearch").value="";
+  document.getElementById("assetResults").innerHTML="";
+  document.getElementById("assetSelectionHint").textContent="Choose a cryptocurrency from the results below.";
+  selectedAsset=null;
+}
+
+function showAssetResults(items,message){
+  const container=document.getElementById("assetResults");
+  container.innerHTML="";
+  if(message){
+    const status=document.createElement("div");
+    status.className="asset-results-message";
+    status.textContent=message;
+    container.appendChild(status);
+    return;
+  }
+  if(!items.length){
+    showAssetResults([],"No matching cryptocurrencies found. Try another name or ticker.");
+    return;
+  }
+  for(const coin of items){
+    const legacyId=LEGACY_COIN_ID_TO_ASSET_ID[String(coin.id)];
+    const id=legacyId||("coinlore-"+coin.id);
+    const button=document.createElement("button");
+    button.type="button";
+    button.className="asset-option";
+    button.setAttribute("role","option");
+    const left=document.createElement("div");
+    const name=document.createElement("div");
+    name.className="asset-option-name";
+    name.textContent=coin.name;
+    const symbol=document.createElement("div");
+    symbol.className="asset-option-symbol";
+    symbol.textContent=coin.symbol;
+    left.append(name,symbol);
+    const rank=document.createElement("span");
+    rank.className="asset-option-rank";
+    rank.textContent=coin.rank?"Rank #"+coin.rank:"Listed asset";
+    button.append(left,rank);
+    button.addEventListener("click",()=>selectAsset({id,symbol:coin.symbol,name:coin.name,rank:coin.rank}));
+    container.appendChild(button);
+  }
+}
+
+function selectAsset(asset){
+  selectedAsset=asset;
+  assets[asset.id]={symbol:asset.symbol,name:asset.name};
+  document.getElementById("assetSearch").value=asset.name+" ("+asset.symbol+")";
+  document.getElementById("assetSelectionHint").textContent="Selected: "+asset.name+" • "+asset.symbol;
+  document.getElementById("assetResults").innerHTML="";
+}
+
+async function searchAssets(query){
+  if(assetSearchController)assetSearchController.abort();
+  assetSearchController=new AbortController();
+  const container=document.getElementById("assetResults");
+  showAssetResults([],"Searching CoinLore's cryptocurrency directory…");
+  try{
+    const url="/api/assets?q="+encodeURIComponent(query||"")+"&ts="+Date.now();
+    const response=await fetch(url,{cache:"no-store",signal:assetSearchController.signal,headers:{accept:"application/json"}});
+    if(!response.ok)throw new Error("Asset search returned "+response.status);
+    const payload=await response.json();
+    if(!Array.isArray(payload.data))throw new Error(payload.error||"Invalid asset directory response");
+    const existingIds=new Set(holdings.map(h=>h.id));
+    const results=payload.data.filter(coin=>{
+      const legacy=LEGACY_COIN_ID_TO_ASSET_ID[String(coin.id)];
+      const id=legacy||("coinlore-"+coin.id);
+      return !existingIds.has(id);
+    });
+    showAssetResults(results);
+  }catch(error){
+    if(error.name==="AbortError")return;
+    console.error("Ledger asset search failed:",error);
+    showAssetResults([],"Could not load the asset directory. Please try your search again.");
+  }
+}
 
 function render(){
   const body=document.getElementById("holdingsBody"), empty=document.getElementById("emptyState");
@@ -135,7 +227,7 @@ function render(){
   if(!holdings.length){body.innerHTML="";empty.style.display="block";return}
   empty.style.display="none";
   body.innerHTML=holdings.map((h,i)=>{
-    const meta=assets[h.id]||{symbol:h.id.toUpperCase(),name:h.id};
+    const meta=assets[h.id]||{symbol:h.symbol||h.id.toUpperCase(),name:h.name||h.id};
     const price=prices[h.id]?.usd;
     const value=h.amount*(price||0);
     const investedRow=h.amount*h.buyPrice;
@@ -192,8 +284,24 @@ document.getElementById("closeBtn").addEventListener("click",closeModal);
 document.getElementById("cancelBtn").addEventListener("click",closeModal);
 document.getElementById("refreshBtn").addEventListener("click",refreshPrices);
 document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
+document.getElementById("assetSearch").addEventListener("input",event=>{
+  selectedAsset=null;
+  document.getElementById("assetSelectionHint").textContent="Select one asset from the search results.";
+  clearTimeout(assetSearchTimer);
+  const query=event.target.value.trim();
+  assetSearchTimer=setTimeout(()=>searchAssets(query),250);
+});
+document.getElementById("assetSearch").addEventListener("keydown",event=>{
+  if(event.key==="Enter"){
+    const first=document.querySelector("#assetResults .asset-option");
+    if(first){event.preventDefault();first.click()}
+  }
+});
 document.getElementById("saveBtn").addEventListener("click",()=>{
-  const id=document.getElementById("asset").value, amount=Number(document.getElementById("amount").value), buyPrice=Number(document.getElementById("buyPrice").value);
+  if(!selectedAsset){toast("Search for and select a cryptocurrency first.",true);return}
+  const id=selectedAsset.id;
+  const amount=Number(document.getElementById("amount").value);
+  const buyPrice=Number(document.getElementById("buyPrice").value);
   if(!Number.isFinite(amount)||amount<=0){toast("Enter a valid amount.",true);return}
   if(!Number.isFinite(buyPrice)||buyPrice<0){toast("Enter a valid buy price.",true);return}
   const existing=holdings.find(h=>h.id===id);
@@ -201,8 +309,10 @@ document.getElementById("saveBtn").addEventListener("click",()=>{
     const totalAmount=existing.amount+amount;
     existing.buyPrice=((existing.amount*existing.buyPrice)+(amount*buyPrice))/totalAmount;
     existing.amount=totalAmount;
+    existing.name=selectedAsset.name;
+    existing.symbol=selectedAsset.symbol;
   }else{
-    holdings.push({id,amount,buyPrice});
+    holdings.push({id,amount,buyPrice,name:selectedAsset.name,symbol:selectedAsset.symbol});
   }
   saveAndRender();closeModal();toast("Holding saved locally.");
   refreshPrices();
