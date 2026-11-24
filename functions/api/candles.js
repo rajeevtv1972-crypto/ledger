@@ -1,20 +1,38 @@
-const intervals = new Set([1,5,15,30,60,240,1440,10080]);
-const aliases = {BTC:"XBT",DOGE:"XDG"};
-const reply = (body,status=200) => Response.json(body,{status,headers:{"cache-control":status===200?"public, max-age=10":"no-store","x-content-type-options":"nosniff"}});
-export async function onRequestGet({request}) {
-  const query = new URL(request.url).searchParams;
-  const symbol = (query.get("symbol")||"BTC").toUpperCase();
-  const interval = Number(query.get("interval")||60);
-  if(!/^[A-Z0-9]{1,15}$/.test(symbol)||!intervals.has(interval)) return reply({error:"Invalid symbol or timeframe."},400);
-  const pair=(aliases[symbol]||symbol)+"USD";
-  try {
-    const r=await fetch("https://api.kraken.com/0/public/OHLC?pair="+encodeURIComponent(pair)+"&interval="+interval,{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
-    if(!r.ok) return reply({error:"Exchange temporarily unavailable."},502);
-    const d=await r.json();
-    if(d.error?.length) return reply({error:"No Kraken USD market available for this symbol."},404);
-    const rows=Object.entries(d.result||{}).find(([key,value])=>key!=="last"&&Array.isArray(value))?.[1]||[];
-    const candles=rows.map(a=>({time:Number(a[0]),open:Number(a[1]),high:Number(a[2]),low:Number(a[3]),close:Number(a[4]),volume:Number(a[6])})).filter(a=>Object.values(a).every(Number.isFinite)&&a.time>0&&a.low>0&&a.high>=a.low).sort((a,b)=>a.time-b.time);
-    if(!candles.length) return reply({error:"No candle history returned by Kraken."},404);
-    return reply({symbol,pair:symbol+"/USD",source:"Kraken spot",interval,candles,updatedAt:Date.now()});
-  } catch(e){return reply({error:"Could not reach Kraken. Please retry."},502);}
+const intervals=new Set([1,5,15,30,60,240,1440,10080]);
+const base={1:60,5:300,15:900,30:900,60:3600,240:3600,1440:86400,10080:86400};
+const aliases={BTC:"XBT",DOGE:"XDG"};
+const reply=(body,status=200,ttl=0)=>Response.json(body,{status,headers:{"cache-control":status===200?"public, max-age="+ttl:"no-store","x-content-type-options":"nosniff"}});
+const valid=a=>Object.values(a).every(Number.isFinite)&&a.time>0&&a.low>0&&a.high>=a.low;
+const unique=rows=>[...new Map(rows.filter(valid).map(a=>[a.time,a])).values()].sort((a,b)=>a.time-b.time);
+const iso=t=>new Date(t*1000).toISOString();
+const fetchJSON=async(url,ttl)=>{const r=await fetch(url,{headers:{Accept:"application/json","User-Agent":"Ledger-Charts/1.0"},signal:AbortSignal.timeout(9000),cf:{cacheEverything:true,cacheTtl:ttl}});if(!r.ok)throw Error("Market feed returned "+r.status);return r.json()};
+function bucket(t,step){const offset=step===604800?345600:0;return Math.floor((t-offset)/step)*step+offset}
+function aggregate(rows,step,gran,from,to){const m=new Map();for(const a of rows){const t=bucket(a.time,step);if(t<from||t>=to)continue;let x=m.get(t);if(!x)m.set(t,{...a,time:t});else{x.high=Math.max(x.high,a.high);x.low=Math.min(x.low,a.low);x.close=a.close;x.volume+=a.volume}}return [...m.values()]}
+async function coinbase(symbol,interval,before,mode){
+const step=interval*60,gran=base[interval],now=Math.floor(Date.now()/1000);
+const edge=before?bucket(before,step):bucket(now,step)+step;
+const per=Math.max(1,Math.floor(280*gran/step)),count=mode==="latest"?Math.min(4,per):per;
+const from=edge-count*step,to=edge;
+const params=new URLSearchParams({granularity:String(gran),start:iso(from),end:iso(to)});
+const rows=await fetchJSON("https://api.exchange.coinbase.com/products/"+symbol+"-USD/candles?"+params, before?3600:10);
+if(!Array.isArray(rows))throw Error("Unexpected Coinbase response");
+const raw=unique(rows.map(a=>({time:Number(a[0]),low:Number(a[1]),high:Number(a[2]),open:Number(a[3]),close:Number(a[4]),volume:Number(a[5])}))).filter(a=>a.time>=from&&a.time<to&&a.time<=now);
+const candles=aggregate(raw,step,gran,from,to);
+return {symbol,pair:symbol+"/USD",source:"Coinbase spot",provider:"coinbase",interval,candles,historyAvailable:true,nextBefore:candles.length?candles[0].time:from,updatedAt:Date.now()};
+}
+async function kraken(symbol,interval){
+const d=await fetchJSON("https://api.kraken.com/0/public/OHLC?pair="+encodeURIComponent((aliases[symbol]||symbol)+"USD")+"&interval="+interval,10);
+if(d.error?.length)throw Error("Kraken pair unavailable");
+const rows=Object.entries(d.result||{}).find(([k,v])=>k!=="last"&&Array.isArray(v))?.[1]||[];
+const candles=unique(rows.map(a=>({time:Number(a[0]),open:Number(a[1]),high:Number(a[2]),low:Number(a[3]),close:Number(a[4]),volume:Number(a[6])})));
+if(!candles.length)throw Error("No Kraken candles");
+return {symbol,pair:symbol+"/USD",source:"Kraken spot",provider:"kraken",interval,candles,historyAvailable:false,updatedAt:Date.now()};
+}
+export async function onRequestGet({request}){
+const q=new URL(request.url).searchParams,symbol=(q.get("symbol")||"BTC").toUpperCase(),interval=Number(q.get("interval")||60),before=q.has("before")?Number(q.get("before")):null,provider=q.get("provider")||"auto",mode=q.get("mode")==="latest"?"latest":"initial";
+if(!/^[A-Z0-9]{1,15}$/.test(symbol)||!intervals.has(interval)||!["auto","coinbase","kraken"].includes(provider)||(before!==null&&(!Number.isSafeInteger(before)||before<1230768000||before>Date.now()/1000+60)))return reply({error:"Invalid chart request."},400);
+if(before&&provider==="kraken")return reply({error:"Kraken only exposes the latest 720 bars.",historyAvailable:false},409);
+try{if(provider!=="kraken"){try{const p=await coinbase(symbol,interval,before,mode);if(p.candles.length||before)return reply(p,200,before?3600:10);throw Error("No Coinbase data")}catch(e){if(before||provider==="coinbase")throw e}}
+return reply(await kraken(symbol,interval),200,10);
+}catch(e){return reply({error:"Candle feed unavailable. Please retry or use Advanced chart."},502)}
 }
