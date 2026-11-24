@@ -46,7 +46,7 @@ button,input,select{font:inherit}button{cursor:pointer}
       <p>Ledger helps you track your holdings, portfolio value and profit/loss while keeping market prices refreshed online.</p>
     </div>
     <div class="actions">
-      <button class="primary" id="addBtn">+ Add holding</button>
+      <a class="secondary" style="text-decoration:none" href="/chart.html">Open Charts ↗</a><button class="primary" id="addBtn">+ Add holding</button>
       <button class="secondary" id="refreshBtn">↻ Refresh prices</button>
     </div>
   </section>
@@ -228,7 +228,7 @@ function render(){
     const investedRow=h.amount*h.buyPrice;
     const rowPnl=price==null?null:value-investedRow;
     const rowPct=investedRow?((rowPnl/investedRow)*100):0;
-    return '<tr><td><div class="asset"><div class="coin">'+meta.symbol.slice(0,3)+'</div><div><div class="asset-name">'+meta.name+'</div><div class="asset-symbol">'+meta.symbol+'</div></div></div></td>'+
+    return '<tr><td><a style="color:inherit;text-decoration:none" href="/chart.html?symbol='+encodeURIComponent(meta.symbol)+'" title="Open chart"><div class="asset"><div class="coin">'+meta.symbol.slice(0,3)+'</div><div><div class="asset-name">'+meta.name+' ↗</div><div class="asset-symbol">'+meta.symbol+'</div></div></div></a></td>'+
       '<td>'+num(h.amount,8)+'</td><td>'+money(h.buyPrice)+'</td><td>'+(price==null?'<span class="muted">Loading…</span>':money(price))+'</td>'+
       '<td>'+(price==null?'<span class="muted">—</span>':money(value))+'</td>'+
       '<td>'+(rowPnl==null?'<span class="muted">—</span>':'<span class="'+(rowPnl>0?"positive":rowPnl<0?"negative":"")+'">'+money(rowPnl)+' ('+rowPct.toFixed(2)+'%)</span>')+
