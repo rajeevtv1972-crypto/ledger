@@ -178,7 +178,7 @@ async function loadMarketData(showStatus=true){
     renderMarkets();
     lastSnapshotAt=Number(payload.updatedAt)||Date.now();
     $("marketDataStatus").textContent="Source: CoinLore • "+coinData.size+" assets • auto-refresh every 30 seconds";
-    $("marketUpdatedAt").textContent="Snapshot: "+new Date(lastSnapshotAt).toLocaleTimeString();
+    $("marketUpdatedAt").textContent="Snapshot: "+new Date(lastSnapshotAt).toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hourCycle:"h23"})+" IST";
     setConnection("CoinLore market data connected",true);
   }catch(error){
     console.error("Ledger market refresh failed:",error);

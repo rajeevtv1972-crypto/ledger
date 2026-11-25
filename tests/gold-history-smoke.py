@@ -29,7 +29,7 @@ with sync_playwright() as w:
     p.on("request",lambda r:requests.append(r.url))
     for attempt in range(20 if prod else 1):
         p.goto(base+"/chart.html?symbol=XAUUSD&period=1m&check="+str(int(time.time())),wait_until="domcontentloaded",timeout=15000)
-        if p.locator('script[src*="chart-terminal.js?v=27"]').count():break
+        if p.locator('script[src*="chart-terminal.js?v=28"]').count():break
         time.sleep(3)
     else:raise RuntimeError("Expected Ledger release did not appear")
     expect(p.locator("#historyInfo")).to_contain_text("20,000 bars")
@@ -38,7 +38,7 @@ with sync_playwright() as w:
     p.locator("#goldHistoryYear").select_option("2021")
     p.locator("#goldHistoryMonth").select_option("01")
     p.get_by_role("button",name="Load month").tap()
-    expect(p.locator("#historyInfo")).to_contain_text("2021-01-03",timeout=25000)
+    expect(p.locator("#historyInfo")).to_contain_text("2021-01-04",timeout=25000)
     expect(p.locator("#goldMonthOpen")).to_have_text("History: 2021-01")
     assert "month=2021-01" in p.url
     assert p.evaluate("document.documentElement.scrollWidth <= innerWidth")

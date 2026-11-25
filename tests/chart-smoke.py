@@ -46,7 +46,7 @@ with sync_playwright() as w:
  a0=p.locator("#draw").bounding_box()
  p.mouse.click(a0["x"]+185,a0["y"]+125)
  expect(p.locator("#streamState")).to_contain_text("Replay")
- expect(p.locator("#replayProgress")).to_contain_text("UTC")
+ expect(p.locator("#replayProgress")).to_contain_text("IST")
  with p.expect_download() as replay_file: p.locator("#csvExport").click()
  assert replay_file.value.suggested_filename.endswith("-replay-Ledger.csv")
  p.locator("#live").click()
