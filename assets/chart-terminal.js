@@ -191,16 +191,107 @@ $("drawingColorForm").onsubmit=e=>{
 $("boxSave").onclick=()=>{const i=boxIndex,field=$("boxOpacity");if(drawings[i]?.type!=="rectangle"||!field.reportValidity())return;
  const a={text:$("boxText").value.trim(),color:$("boxBorder").value,fill:$("boxFill").value,textColor:$("boxTextColor").value,opacity:Number(field.value)/100,mid:$("boxMid").checked};
  changeDraw(()=>Object.assign(drawings[i],a));selected=i;renderObjects();$("boxDialog").close()};
+let positionDraft=null;
+const isPosition=d=>d?.type==="long"||d?.type==="short";
+const positionSign=d=>d.type==="long"?1:-1;
+const positionTitle=d=>d.type==="long"?"Long position":"Short position";
+function positionValues(d){
+ const entry=d.a?.price,stop=d.b?.price,target=d.c?.price,dir=positionSign(d);
+ const risk=dir*(entry-stop),reward=dir*(target-entry);
+ return [entry,stop,target,risk,reward].every(Number.isFinite)&&Math.min(entry,stop,target,risk,reward)>0?{entry,stop,target,risk,reward,ratio:reward/risk}:null;
+}
+const positionEnd=d=>Math.max(d.a.time+stepSeconds(),d.b.time,d.c.time);
+function positionGeometry(d){
+ const v=positionValues(d);if(!v)return null;
+ const a=coords(d.a),right=coords({time:positionEnd(d),price:v.entry}),stop=series.priceToCoordinate(v.stop),target=series.priceToCoordinate(v.target);
+ if(!a||!right||stop==null||target==null)return null;
+ return {...v,left:a.x,right:right.x,entryY:a.y,stopY:stop,targetY:target};
+}
+function priceTag(formatter,v){return formatter.format(v)}
+const rrNumber=new Intl.NumberFormat("en-US",{maximumFractionDigits:2}),qtyNumber=new Intl.NumberFormat("en-US",{maximumFractionDigits:8});
+function positionSummary(d,v){
+ const {account,risk}=d.sizing||{};
+ if(!(account>0&&risk>0&&risk<=100))return "";
+ const budget=account*risk/100;
+ return " · Qty "+priceTag(qtyNumber,budget/v.risk)+" units";
+}
+function paintPosition(d,w,h,active){
+ const g=positionGeometry(d);if(!g||g.right<0||g.left>w)return;
+ const {left,right,entryY,stopY,targetY}=g,span=right-left;
+ const theme=settings.theme==="light",profit=theme?"#007e69":"#26a69a",loss=theme?"#b52542":"#ef5350";
+ const entryColor=d.color||"#8398ad",shownLeft=Math.max(0,left),shownRight=Math.min(w,right),labelX=(shownLeft+shownRight)/2;
+ ctx.save();
+ for(const [y,col] of [[targetY,profit],[stopY,loss]]){
+  ctx.globalAlpha=active?.28:.21;ctx.fillStyle=col;ctx.fillRect(left,Math.min(y,entryY),span,Math.abs(y-entryY));
+  ctx.globalAlpha=1;ctx.strokeStyle=col;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();
+ }
+ ctx.strokeStyle=entryColor;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(left,entryY);ctx.lineTo(right,entryY);ctx.stroke();
+ if(shownRight-shownLeft>28){
+  const narrow=w<470,labelWidth=Math.max(24,Math.min(w-12,narrow?245:350));
+  ctx.font="600 11px system-ui";ctx.textAlign="center";ctx.textBaseline="middle";
+  const label=(text,y,col)=>{
+   if(y<1||y>h-1)return;
+   const width=Math.min(labelWidth,ctx.measureText(text).width+14),x=Math.min(w-width/2-1,Math.max(width/2+1,labelX)),at=Math.max(11,Math.min(h-11,y));
+   ctx.fillStyle=col;ctx.fillRect(x-width/2,at-9,width,18);ctx.fillStyle="#fff";ctx.fillText(text,x,at,width-10);
+  };
+  const prices=v=>" · "+price(v);
+  label((d.type==="long"?"LONG":"SHORT")+prices(g.entry)+" · R/R "+priceTag(rrNumber,g.ratio)+(active&&!narrow?positionSummary(d,g):""),entryY,theme?"#334155":"#344861");
+  if(active){
+   const direction=(y)=>y<entryY?-1:1;
+   const metrics=(delta)=>" ("+priceTag(rrNumber,delta/g.entry*100)+"%)";
+   if(Math.abs(targetY-entryY)>16)label("Target "+price(g.target)+metrics(g.reward),targetY+10*direction(targetY),"#087564");
+   if(Math.abs(stopY-entryY)>16)label("Stop "+price(g.stop)+metrics(g.risk),stopY+10*direction(stopY),"#a72d3b");
+  }
+ }
+ if(active||tool==="edit"){
+  ctx.lineWidth=1.5;
+  for(const [x,y,col] of [[left,targetY,profit],[left,stopY,loss],[right,entryY,entryColor]]){
+   ctx.fillStyle=theme?"#fff":"#131722";ctx.strokeStyle=col;
+   ctx.fillRect(x-4,y-4,8,8);ctx.strokeRect(x-4,y-4,8,8);
+  }
+ }
+ ctx.restore();
+}
+function openPosition(i){
+ const d=drawings[i];if(!isPosition(d))return;
+ positionDraft={drawing:d,key:drawingKey()};chooseDrawing(i);
+ $("positionTitle").textContent=positionTitle(d)+" settings";
+ $("positionEntry").value=d.a.price;$("positionStop").value=d.b.price;$("positionTarget").value=d.c?.price??"";
+ $("positionAccount").value=d.sizing?.account??"";$("positionRisk").value=d.sizing?.risk??"";
+ $("positionError").textContent="";updatePositionPreview();showDialog("positionDialog");
+}
+function updatePositionPreview(){
+ const d=positionDraft?.drawing;if(!d)return;
+ const v=positionValues({...d,a:{price:Number($("positionEntry").value)},b:{price:Number($("positionStop").value)},c:{price:Number($("positionTarget").value)}});
+ const sizing={account:Number($("positionAccount").value),risk:Number($("positionRisk").value)};
+ $("positionPreview").textContent=v?"R/R "+priceTag(rrNumber,v.ratio)+positionSummary({sizing},v):"";
+}
+$("positionForm").oninput=updatePositionPreview;
+$("positionForm").onsubmit=e=>{
+ e.preventDefault();const draft=positionDraft;
+ if(!draft||draft.key!==drawingKey())return;
+ const i=drawings.indexOf(draft.drawing);if(i<0)return;
+ const old=drawings[i],end=old.c?positionEnd(old):Math.max(old.a.time+stepSeconds(),old.b.time);
+ const d={...old,a:{...old.a,price:Number($("positionEntry").value)},b:{time:end,price:Number($("positionStop").value)},c:{time:end,price:Number($("positionTarget").value)}};
+ const v=positionValues(d),error=$("positionError");
+ if(!v){error.textContent=d.type==="long"?"Long: Stop < Entry < Target.":"Short: Target < Entry < Stop.";return}
+ const account=Number($("positionAccount").value),risk=Number($("positionRisk").value);
+ if((account||risk)&&!(account>0&&risk>0&&risk<=100)){error.textContent="Enter both account size and a risk percentage between 0 and 100.";return}
+ if(account&&risk)d.sizing={account,risk};else delete d.sizing;
+ changeDraw(()=>drawings[i]=d);chooseDrawing(i);$("positionDialog").close();
+ notify(positionTitle(d)+" · R/R "+priceTag(rrNumber,v.ratio)+positionSummary(d,v));
+};
+$("positionOpen").onclick=()=>openPosition(selected);
 function syncBoxActions(){
  const d=drawings[selected],show=!csvOnlyMarket()&&!hidden&&!!d,box=d?.type==="rectangle",text=d?.type==="text";
  $("boxActions").hidden=!show;$("boxOptions").hidden=!show||!box;
- $("boxEditText").hidden=!box&&!text;$("boxEditText").textContent=d?.text?"Edit text":"Add text";
- $("boxMove").textContent=box?"Move / resize":"Move";$("boxMove").disabled=!!lockDrawings;
+ $("chartarea").classList.toggle("position-selected",show&&isPosition(d)&&!lockDrawings);$("positionOpen").hidden=!isPosition(d);$("boxEditText").hidden=!box&&!text;$("boxEditText").textContent=d?.text?"Edit text":"Add text";
+ $("boxMove").textContent=box||isPosition(d)?"Move / resize":"Move";$("boxMove").disabled=!!lockDrawings;
  $("boxMove").setAttribute("aria-pressed",tool==="edit");
 }
 function chooseDrawing(i){selected=i;renderObjects()}
 $("boxEditText").onclick=()=>{if(drawings[selected]?.type==="rectangle")openBox(selected);else openDrawingText(selected)};
-$("boxMove").onclick=()=>{setTool(tool==="edit"?"cursor":"edit");if(tool==="edit")notify(drawings[selected]?.type==="rectangle"?"Drag the box to move it, or drag any corner to resize":"Drag a handle to move the drawing")};
+$("boxMove").onclick=()=>{setTool(tool==="edit"?"cursor":"edit");if(tool==="edit")notify(isPosition(drawings[selected])?"Drag the zone to move it, or drag a handle to resize":drawings[selected]?.type==="rectangle"?"Drag the box to move it, or drag any corner to resize":"Drag a handle to move the drawing")};
 $("boxDelete").onclick=()=>{if(!drawings[selected])return;const i=selected;changeDraw(()=>drawings.splice(i,1));setTool("cursor");notify("Drawing deleted · Undo restores it")};
 $("boxDismiss").onclick=()=>{setTool("cursor");chooseDrawing(-1)};
 function renderObjects(){syncBoxActions();if(csvOnlyMarket())return;const e=$("objects");e.replaceChildren();drawings.forEach((d,i)=>{const row=document.createElement("div");row.className="objectrow";const a=document.createElement("button"),b=document.createElement("button");a.textContent=(i+1)+". "+(d.text||d.type);a.className=selected===i?"active":"";a.onclick=()=>chooseDrawing(i);b.textContent="×";b.title="Delete drawing";b.onclick=()=>changeDraw(()=>drawings.splice(i,1));row.append(a);if(d.type==="rectangle"||d.type==="text"){const c=document.createElement("button");c.textContent="⚙";c.title=d.type==="rectangle"?"Edit box":"Edit text";c.setAttribute("aria-label",c.title+" "+(d.text||i+1));c.onclick=()=>d.type==="rectangle"?openBox(i):openDrawingText(i);row.append(c)}row.append(b);e.append(row)});if(!drawings.length)e.textContent="No drawings yet"}
@@ -210,16 +301,15 @@ function select(s,frame){s=normalize(s);if(!valid(s))return;barHover=null;pinned
   if(symbol!==s&&frame===undefined){style="candles";$("style").value=style}
  }
  symbol=s;recents=[s,...recents.filter(x=>x!==s)].slice(0,12);save("ledger_recents_v1",recents);updateStar();$("symbol").value=s;drawings=Array.isArray(all[drawingKey()])?clone(all[drawingKey()]):[];past=[];future=[];selected=-1;setTool("cursor");preferences();const url=new URL(location.href);if(!benchmarkMode()&&!goldArchive()&&!goldLiveMode())url.searchParams.delete("period");if(!goldArchive())url.searchParams.delete("month");url.searchParams.set("symbol",s);url.searchParams.delete("engine");history.replaceState(null,"",url);renderWatch();renderObjects();load(true)}
-function setTool(t){if(t==="edit"&&lockDrawings){notify("Drawing positions are locked");return}if(editDrag){drawings=editDrag.before;editDrag=null}tool=t;pending=null;preview=null;thirdPoint=null;q("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===t));canvas.classList.toggle("armed",t!=="cursor");syncBoxActions();$("hint").textContent=t==="cursor"?"Crosshair":t==="edit"?"Drag a handle to move a drawing or a box corner to resize":t==="text"?"Tap a box to label it, or tap the chart to add a note":t+" · select point"}
+function setTool(t){if(t==="edit"&&lockDrawings){notify("Drawing positions are locked");return}if(editDrag){drawings=editDrag.before;editDrag=null}tool=t;pending=null;preview=null;thirdPoint=null;q("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===t));canvas.classList.toggle("armed",t!=="cursor");syncBoxActions();$("hint").textContent=t==="cursor"?"Crosshair":t==="edit"?"Drag a handle to move a drawing or a box corner to resize":t==="text"?"Tap a box to label it, or tap the chart to add a note":t==="long"||t==="short"?"Tap your entry price to place the position":t+" · select point"}
 function resize(){const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;if(canvas.width!==Math.round(r.width*d)||canvas.height!==Math.round(r.height*d)){canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d)}ctx.setTransform(d,0,0,d,0,0);return r}
 function point(e){if(!series||!data.length)return null;const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,ts=chart.timeScale();if(x<0||x>ts.width()||y<0||y>(chart.panes?.()[0]?.getHeight?.()||r.height-25))return null;const ix=ts.coordinateToLogical(x),p=series.coordinateToPrice(y);if(ix==null||p==null||!Number.isFinite(p))return null;const i=Math.round(ix);let a=data[i],time=a?.time??(data[0].time+i*stepSeconds()),value=p;if(magnet&&a)value=[a.open,a.high,a.low,a.close].sort((a,b)=>Math.abs(a-p)-Math.abs(b-p))[0];return {time,price:value}}
 function lowerBound(bars,t){let lo=0,hi=bars.length;while(lo<hi){const m=(lo+hi)>>1;if(bars[m].time<t)lo=m+1;else hi=m}return lo}
 function coords(p){if(!p||!data.length)return null;const first=data[0].time,last=data.at(-1).time;let i;if(p.time<first)i=(p.time-first)/stepSeconds();else if(p.time>last)i=data.length-1+(p.time-last)/stepSeconds();else{let lo=0,hi=data.length-1;while(lo<hi){let mid=(lo+hi)>>1;if(data[mid].time<p.time)lo=mid+1;else hi=mid}i=lo;if(lo>0&&data[lo].time!==p.time)i=lo-1+(p.time-data[lo-1].time)/(data[lo].time-data[lo-1].time)}const x=chart.timeScale().logicalToCoordinate(i),y=series.priceToCoordinate(p.price);return x==null||y==null?null:{x,y}}
-function drawOne(d,w,h,highlight=false){const a=coords(d.a),b=coords(d.b||d.a);if(!a||!b)return;ctx.strokeStyle=d.color||"#57d7be";ctx.fillStyle=d.color||"#57d7be";ctx.lineWidth=highlight?3:1.5;ctx.font="12px system-ui";const ln=(x,y,x2,y2)=>{ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke()};
+function drawOne(d,w,h,highlight=false){if(isPosition(d)){paintPosition(d,w,h,highlight);return}const a=coords(d.a),b=coords(d.b||d.a);if(!a||!b)return;ctx.strokeStyle=d.color||"#57d7be";ctx.fillStyle=d.color||"#57d7be";ctx.lineWidth=highlight?3:1.5;ctx.font="12px system-ui";const ln=(x,y,x2,y2)=>{ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke()};
 if(d.type==="horizontal"){ln(0,a.y,w,a.y);ctx.fillText(price(d.a.price),8,a.y-5)}
 else if(d.type==="hRay"){ln(a.x,a.y,w,a.y);ctx.fillText(price(d.a.price),a.x+4,a.y-5)}
 else if(d.type==="arrow"){ln(a.x,a.y,b.x,b.y);let t=Math.atan2(b.y-a.y,b.x-a.x);ln(b.x,b.y,b.x-12*Math.cos(t-.5),b.y-12*Math.sin(t-.5));ln(b.x,b.y,b.x-12*Math.cos(t+.5),b.y-12*Math.sin(t+.5))}
-else if(d.type==="long"||d.type==="short"){const z=coords(d.c||d.b);if(!z)return;let x=Math.min(a.x,b.x),ww=Math.max(30,Math.abs(b.x-a.x));ctx.globalAlpha=.25;ctx.fillStyle="#f06072";ctx.fillRect(x,Math.min(a.y,b.y),ww,Math.abs(a.y-b.y));ctx.fillStyle="#25be95";ctx.fillRect(x,Math.min(a.y,z.y),ww,Math.abs(a.y-z.y));ctx.globalAlpha=1;ctx.fillStyle=d.color;ln(x,a.y,x+ww,a.y);ctx.fillText("R:R "+(Math.abs((d.c||d.b).price-d.a.price)/Math.max(1e-12,Math.abs(d.b.price-d.a.price))).toFixed(2),x+4,a.y-6)}
 else if(d.type==="vertical")ln(a.x,0,a.x,h);
 else if(d.type==="trend")ln(a.x,a.y,b.x,b.y);
 else if(d.type==="ray"){const dx=b.x-a.x,dy=b.y-a.y;if(Math.abs(dx)<.001)ln(a.x,a.y,a.x,dy>=0?h:0);else{const end=dx>0?w:0;ln(a.x,a.y,end,a.y+dy*(end-a.x)/dx)}}
@@ -301,8 +391,9 @@ function drawingAt(e){
        }break;
      }
      case "long":case "short":{
-       const c=coords(d.c),left=Math.min(a.x,b.x),right=left+Math.max(30,Math.abs(a.x-b.x));
-       if(c)dist=Math.min(...[a.y,b.y,c.y].map(z=>horizontal(z,left,right)));break;
+       const g=positionGeometry(d);if(!g)break;
+       const top=Math.min(g.stopY,g.targetY),bottom=Math.max(g.stopY,g.targetY);
+       dist=x>=g.left&&x<=g.right&&y>=top&&y<=bottom?tolerance-.25:Math.min(...[g.entryY,g.stopY,g.targetY].map(z=>horizontal(z,g.left,g.right)));break;
      }
      case "avwap":{
        let sum=0,vol=0,prev=null;
@@ -320,30 +411,89 @@ function drawingAt(e){
 }
 const chartArea=$("chartarea");let tap=null;
 function isPlotTarget(e){return $("chart").contains(e.target)}
-chartArea.addEventListener("pointerdown",e=>{if(tool==="cursor"&&!hidden&&data.length&&e.isPrimary&&e.button===0&&isPlotTarget(e))tap={id:e.pointerId,x:e.clientX,y:e.clientY}},true);
-chartArea.addEventListener("pointerup",e=>{const t=tap;tap=null;if(!t||e.pointerId!==t.id||tool!=="cursor"||!isPlotTarget(e)||Math.hypot(e.clientX-t.x,e.clientY-t.y)>9)return;const pos=point(e);if(replayPicking){if(pos)startReplayAt(pos.time);return}
+chartArea.addEventListener("pointerdown",e=>{if(tool==="cursor"&&!hidden&&data.length&&e.isPrimary&&e.button===0&&isPlotTarget(e)){
+  const hit=!replayPicking&&!lockDrawings?positionHit(drawings[selected],e):null;
+  if(hit){e.stopPropagation();e.preventDefault();beginEdit(e,selected,hit,e.target)}
+  else tap={id:e.pointerId,x:e.clientX,y:e.clientY};
+}},true);
+chartArea.addEventListener("pointerup",e=>{if(editDrag?.direct)return;const t=tap;tap=null;if(!t||e.pointerId!==t.id||tool!=="cursor"||!isPlotTarget(e)||Math.hypot(e.clientX-t.x,e.clientY-t.y)>9)return;const pos=point(e);if(replayPicking){if(pos)startReplayAt(pos.time);return}
  if(pos){const a=data[lowerBound(data,pos.time)];pinnedBar=a?.time??null;renderDataWindow(a||data.at(-1))}
  const i=pos?drawingAt(e):-1;if(selected!==i)chooseDrawing(i)},true);
 chartArea.addEventListener("pointercancel",()=>{tap=null},true);
-chartArea.addEventListener("dblclick",e=>{if((tool==="edit"&&e.target===canvas)||(tool==="cursor"&&isPlotTarget(e))){const i=drawingAt(e);if(drawings[i]?.type==="rectangle")openBox(i);else if(drawings[i]?.type==="text")openDrawingText(i)}},true);
+chartArea.addEventListener("dblclick",e=>{if((tool==="edit"&&e.target===canvas)||(tool==="cursor"&&isPlotTarget(e))){const i=drawingAt(e);if(drawings[i]?.type==="rectangle")openBox(i);else if(drawings[i]?.type==="text")openDrawingText(i);else if(isPosition(drawings[i]))openPosition(i)}},true);
 document.addEventListener("keydown",e=>{if(e.key==="Shift")shiftDrawing=true});document.addEventListener("keyup",e=>{if(e.key==="Shift")shiftDrawing=false});window.addEventListener("blur",()=>{shiftDrawing=false});
-canvas.addEventListener("pointermove",e=>{preview=point(e);if(editDrag?.pointer===e.pointerId&&preview){const d=drawings[editDrag.index],field=editDrag.field;if(field==="body"){const base=editDrag.before[editDrag.index],start=editDrag.start;for(const k of ["a","b"])d[k]={time:base[k].time+preview.time-start.time,price:base[k].price+preview.price-start.price};editDrag.changed=true;return}if(field==="ab"||field==="ba"){const [x,y]=field;d[x].time=preview.time;d[y].price=preview.price;editDrag.changed=true;return}if(field==="a"||field==="b")preview=straight(field==="a"?d.b:d.a,preview,e.shiftKey,d.type);const entry=field==="a"?preview:d.a,stop=field==="b"?preview:d.b,target=field==="c"?preview:d.c;if(d.type==="long"&&!(stop.price<entry.price&&target.price>entry.price)||d.type==="short"&&!(stop.price>entry.price&&target.price<entry.price))return;d[field]=preview;editDrag.changed=true}});
-function finishEdit(e){if(editDrag?.pointer!==e.pointerId)return;const d=editDrag;editDrag=null;if(e.type==="pointercancel"){drawings=d.before;return}if(d.changed){past.push(d.before);future=[];saveDraw()}}
-canvas.addEventListener("pointerup",finishEdit);canvas.addEventListener("pointercancel",finishEdit);
+function movePosition(e){
+ const drag=editDrag;
+ if(!drag||drag.pointer!==e.pointerId||!isPosition(drag.before[drag.index]))return false;
+ if(drag.direct){e.preventDefault();e.stopPropagation()}
+ const base=drag.before[drag.index],target=point(e),start=drag.start;
+ if(!target||!start||Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<3&&!drag.changed)return true;
+ const d=clone(base),end=positionEnd(base),dir=positionSign(d);
+ d.b.time=d.c.time=end;
+ const dy=target.price-start.price,dt=target.time-start.time;
+ if(drag.field==="body"){
+  for(const k of ["a","b","c"]){d[k].time+=dt;d[k].price+=dy}
+ }else if(drag.field==="width"){d.b.time=d.c.time=Math.max(d.a.time+stepSeconds(),end+dt)}
+ else {
+  const delta=Math.max(Math.abs(d.a.price)*1e-8,1e-10),next=base[drag.field].price+dy;
+  if(drag.field==="b")d.b.price=dir===1?Math.min(next,d.a.price-delta):Math.max(next,d.a.price+delta);
+  else d.c.price=dir===1?Math.max(next,d.a.price+delta):Math.min(next,d.a.price-delta);
+ }
+ if(positionValues(d)){drawings[drag.index]=d;drag.changed=true}
+ return true;
+}
+canvas.addEventListener("pointermove",e=>{if(movePosition(e))return;preview=point(e);if(editDrag?.pointer===e.pointerId&&preview){const d=drawings[editDrag.index],field=editDrag.field;if(field==="body"){const base=editDrag.before[editDrag.index],start=editDrag.start;for(const k of ["a","b"])d[k]={time:base[k].time+preview.time-start.time,price:base[k].price+preview.price-start.price};editDrag.changed=true;return}if(field==="ab"||field==="ba"){const [x,y]=field;d[x].time=preview.time;d[y].price=preview.price;editDrag.changed=true;return}if(field==="a"||field==="b")preview=straight(field==="a"?d.b:d.a,preview,e.shiftKey,d.type);d[field]=preview;editDrag.changed=true}});
+function finishEdit(e){if(editDrag?.pointer!==e.pointerId)return;const d=editDrag;editDrag=null;if(e.type==="pointercancel"||e.type==="lostpointercapture"){drawings=d.before;return}if(d.changed){past.push(d.before);future=[];saveDraw()}}
+canvas.addEventListener("pointerup",finishEdit);canvas.addEventListener("pointercancel",finishEdit);canvas.addEventListener("lostpointercapture",finishEdit);
+chartArea.addEventListener("pointermove",e=>{if(editDrag?.direct)movePosition(e)},true);
+for(const name of ["pointerup","pointercancel","lostpointercapture"])chartArea.addEventListener(name,e=>{if(editDrag?.direct){e.stopPropagation();finishEdit(e)}},true);
+function positionHit(d,e){
+ if(!isPosition(d))return null;
+ const g=positionGeometry(d);if(!g)return null;
+ const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,tol=e.pointerType==="touch"?18:10;
+ if(!point(e))return null;
+ const points=[["b",g.left,g.stopY],["c",g.left,g.targetY],["width",g.right,g.entryY]];
+ const handles=points.map(([field,hx,hy])=>[field,Math.hypot(x-hx,y-hy)]).filter(([,n])=>n<=tol).sort((a,b)=>a[1]-b[1]);
+ if(handles.length)return handles[0][0];
+ const nearX=x>=g.left-3&&x<=g.right+3;
+ if(!nearX)return null;
+ // The entry line and filled zones move the whole drawing. Drag the labeled price edges to resize levels.
+ if(Math.abs(y-g.entryY)<=tol/2)return "body";
+ if(Math.abs(y-g.stopY)<=tol/2)return "b";
+ if(Math.abs(y-g.targetY)<=tol/2)return "c";
+ return y>=Math.min(g.stopY,g.targetY)&&y<=Math.max(g.stopY,g.targetY)?"body":null;
+}
+function beginEdit(e,index,field,owner){
+ const start=point(e);if(!start)return;
+ chooseDrawing(index);editDrag={index,field,pointer:e.pointerId,before:clone(drawings),changed:false,start,x:e.clientX,y:e.clientY,direct:owner!==canvas};
+ owner.setPointerCapture(e.pointerId);
+}
+function newPosition(d){
+ const ts=chart.timeScale(),index=ts.coordinateToLogical(coords(d.a).x),range=ts.getVisibleLogicalRange();
+ const bars=Math.max(4,Math.round(((range?.to??90)-(range?.from??0))*.23)),right=Math.round(index)+bars;
+ const end=data[right]?.time??(data.at(-1).time+Math.max(1,right-data.length+1)*stepSeconds());
+ const y=series.priceToCoordinate(d.a.price),h=chart.panes?.()[0]?.getHeight?.()||canvas.clientHeight,dir=positionSign(d);
+ const room=dir===1?Math.min((h-y)*.6,y*.34):Math.min(y*.6,(h-y)*.34);
+ const offset=series.coordinateToPrice(y+dir*Math.max(12,Math.min(55,room)));
+ const risk=Math.min(d.a.price*.45,Math.max(d.a.price*.00001,Math.abs(d.a.price-(offset??d.a.price*.995))));
+ if(!Number.isFinite(d.a.price)||d.a.price<=0||!Number.isFinite(end))return null;
+ const rightTime=Math.max(end,d.a.time+stepSeconds());
+ return {...d,b:{time:rightTime,price:d.a.price-dir*risk},c:{time:rightTime,price:d.a.price+dir*2*risk}};
+}
 function grabAnchor(e){
  const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
  let best=e.pointerType==="touch"?23:16,hit;
  const order=drawings.map((_,i)=>i).reverse();
  if(selected>=0&&order.includes(selected)){order.splice(order.indexOf(selected),1);order.unshift(selected)}
  for(const i of order){
-  const d=drawings[i],a=coords(d.a),b=coords(d.b),corners={a,b,c:coords(d.c)};
+  const d=drawings[i];if(isPosition(d)){const f=positionHit(d,e);if(f&&!hit){beginEdit(e,i,f,canvas);return}continue}const a=coords(d.a),b=coords(d.b),corners={a,b,c:coords(d.c)};
   if(d.type==="rectangle"&&a&&b){corners.ab={x:a.x,y:b.y};corners.ba={x:b.x,y:a.y}}
   for(const [field,p] of Object.entries(corners)){if(!p)continue;const dist=Math.hypot(x-p.x,y-p.y);if(dist<best){best=dist;hit={index:i,field}}}
  }
  if(!hit){const i=drawingAt(e),start=point(e);if(drawings[i]?.type!=="rectangle"||!start){chooseDrawing(i);return}hit={index:i,field:"body",start}}
  chooseDrawing(hit.index);editDrag={...hit,pointer:e.pointerId,before:clone(drawings),changed:false};canvas.setPointerCapture(e.pointerId)
 }
-canvas.addEventListener("pointerdown",e=>{if(tool==="cursor"||hidden)return;if(tool==="edit"){grabAnchor(e);return}if(tool==="avwap"&&!data.some(bar=>bar.volume>0)){$("hint").textContent="Anchored VWAP requires volume";return}const p=straight(thirdPoint?null:pending,point(e),e.shiftKey,tool);if(!p)return;let d={type:tool,a:pending||p,color:$("color").value};if(tool==="text"){const i=boxAt(e);setTool("cursor");if(i>=0)openBox(i);else openDrawingText(-1,p);return}if(["horizontal","vertical","hRay","avwap"].includes(tool)){changeDraw(()=>drawings.push(d));setTool(keepDrawing?d.type:"cursor")}else if(!pending){pending=p;$("hint").textContent=tool+" · second point"}else if(["long","short","channel","fibExt"].includes(tool)&&!thirdPoint){if((tool==="long"&&p.price>=pending.price)||(tool==="short"&&p.price<=pending.price)){$("hint").textContent="Select stop on correct side of entry";return}thirdPoint=p;$("hint").textContent=tool==="channel"?"Select channel width":tool==="fibExt"?"Select projection start":"Select target"}else{d.b=thirdPoint||p;if(thirdPoint){if((tool==="long"&&p.price<=pending.price)||(tool==="short"&&p.price>=pending.price)){$("hint").textContent="Select target on correct side of entry";return}d.c=p}changeDraw(()=>drawings.push(d));setTool(keepDrawing?d.type:"cursor");if(d.type==="rectangle"&&!keepDrawing){chooseDrawing(drawings.length-1);notify("Box selected · use Add text, Change color, Move / resize or Delete")}}});
+canvas.addEventListener("pointerdown",e=>{if(tool==="cursor"||hidden)return;if(tool==="edit"){grabAnchor(e);return}if(tool==="avwap"&&!data.some(bar=>bar.volume>0)){$("hint").textContent="Anchored VWAP requires volume";return}const p=straight(thirdPoint?null:pending,point(e),e.shiftKey,tool);if(!p)return;let d={type:tool,a:pending||p,color:$("color").value};if(isPosition(d)){const pos=newPosition(d);if(!pos){notify("Choose a positive entry price on the chart");return}changeDraw(()=>drawings.push(pos));setTool(keepDrawing?d.type:"cursor");if(!keepDrawing)chooseDrawing(drawings.length-1);notify(positionTitle(d)+" placed · Drag to adjust or open Position settings");return}if(tool==="text"){const i=boxAt(e);setTool("cursor");if(i>=0)openBox(i);else openDrawingText(-1,p);return}if(["horizontal","vertical","hRay","avwap"].includes(tool)){changeDraw(()=>drawings.push(d));setTool(keepDrawing?d.type:"cursor")}else if(!pending){pending=p;$("hint").textContent=tool+" · second point"}else if(["channel","fibExt"].includes(tool)&&!thirdPoint){thirdPoint=p;$("hint").textContent=tool==="channel"?"Select channel width":"Select projection start"}else{d.b=thirdPoint||p;if(thirdPoint)d.c=p;changeDraw(()=>drawings.push(d));setTool(keepDrawing?d.type:"cursor");if(d.type==="rectangle"&&!keepDrawing){chooseDrawing(drawings.length-1);notify("Box selected · use Add text, Change color, Move / resize or Delete")}}});
 $("search").onsubmit=e=>{e.preventDefault();select($("symbol").value)};
 $("addwatch").onclick=()=>{if(!Object.hasOwn(commodities,symbol)&&!Object.hasOwn(otherMarkets,symbol)&&!watch.includes(symbol)){watch.push(symbol);save("ledger_chart_watch_v1",watch);renderWatch()}};
 q("[data-i]").forEach(b=>b.onclick=()=>{barHover=null;pinnedBar=null;setReplayPicking(false);historyView=false;stopLive();stopPlayback();interval=Number(b.dataset.i);replayData=null;q("[data-i]").forEach(x=>x.classList.toggle("active",Number(x.dataset.i)===interval));preferences();setTool("cursor");load(true)});

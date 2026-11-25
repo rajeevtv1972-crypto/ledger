@@ -101,3 +101,7 @@ with `LEDGER_GOLD_ZIP=ZIP node --test tests/gold-archive.test.js`.
 ### Current Gold spot samples
 
 Gold opens in **Live sampled**, a separate 15-minute chart built from XAUS indicative XAU/USD observations. It starts with up to 48 hours of 5-minute samples, then checks the source about every 60 seconds while the tab is visible. Counts refer to observations, not volume. Missing or single-sample periods are not filled. Its extremes are sampled highs/lows, not broker OHLC or executable prices. The archive, benchmark, and spot line remain separate. This feed has no alerts or CSV export.
+
+### Long / Short position drawings
+
+Pick **Long position** or **Short position** and click the entry once. Ledger starts with a 2:1 reward-to-risk ratio. Drag the selected zone to move it, the top/bottom level handles to change take profit or stop loss, and the right entry handle to extend its duration. Use **Position settings** (or double-click the drawing on a desktop) for exact prices and an optional risk-based estimate in base units. These are planning drawings, not orders; the estimate doesn't model leverage, fees or broker lots.
