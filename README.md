@@ -39,3 +39,24 @@ omitted spread and real-volume columns, and gzip-compressed the CSV. OHLC
 and tick counts are unchanged. This is a broker spot Gold CFD historical
 archive, not a live feed, and volumes are broker tick counts rather than
 exchange totals. The existing indicative Gold 5m–4h views remain separate.
+
+### Chart workspace
+
+Use **Panel** to switch among Watchlist, Objects, Alerts, and the Data window.
+The Data window follows the crosshair; clicking or tapping a candle pins its
+values when the crosshair leaves. **Replay → Pick on chart** starts on a candle
+from the loaded series. The replay bar supports next-bar stepping, play/pause,
+speed changes, and exiting to the active source. Exporting candles during
+replay exports only the currently revealed bars.
+
+**Layout → Saved workspaces** stores named symbol, timeframe, chart style,
+layout, comparison and indicator presets on this browser. It does not
+copy drawings, local CSV files or alerts. **Keep drawing** repeats the
+selected tool; **Lock drawing positions** protects anchors while still
+allowing a selected drawing's text or color to be edited or the drawing
+deleted. Hold Shift to snap straight-line tools horizontally or vertically.
+
+Ledger uses the TradingView Supercharts workflow as a reference, not its
+embedded product. Pine Script, broker execution and cloud alerts are not
+implemented. Source availability, coverage and licensing vary by market;
+a historical Gold CSV is not a live feed.

@@ -25,6 +25,7 @@ let watch=read("ledger_chart_watch_v1",["BTC","ETH","SOL","XRP","ADA","DOGE","LI
 let all=read("ledger_chart_drawings_v1",{});if(!all||typeof all!=="object"||Array.isArray(all))all={};
 let drawings=[],past=[],future=[],selected=-1,tool="cursor",pending=null,preview=null,hidden=false,magnet=false,log=false,data=[],loadedKey="",seq=0,busy=false,overlays=[],series,chart;
 let L=window.LightweightCharts;const canvas=$("draw"),ctx=canvas.getContext("2d");
+let replayPicking=false,pinnedBar=null,barHover=null,keepDrawing=read("ledger_keep_drawing",false),lockDrawings=read("ledger_lock_drawings",false),dataWindowLines=[];
 let imported=null,editDrag=null,boxIndex=-1,textDraft=null,colorDraft=null,shiftDrawing=false,libraryPromise,replayData=null,replayIndex=0,thirdPoint=null;
 let liveSocket=null,liveKey="",liveGeneration=0,liveState="idle",lastSocketMessage=0,lastTradeAt=0,liveRetry=null,liveBackoff=1000,liveFrame=0,liveDirty=false,lastRenderedTime=0,lastIndicatorUpdate=0,lastRestSync=0,liveTradeCount=0,liveSeen=new Set(),liveVolumeSeries=null,tradeBuffer=[],syncInProgress=false;
 let provider="auto",sourceName="",hasHistory=false,nextBefore=null,historyBusy=false,historyEnded=false,historyDelay=0,historyTimer,controller=null,lastPaint=0;const MAX_BARS=20000;
@@ -37,8 +38,19 @@ function updateMobileStatus(){const e=$("mobileStatus");if(e)e.textContent=[$("s
 new MutationObserver(updateMobileStatus).observe($("historyInfo"),{childList:true,characterData:true,subtree:true});
 function message(t){$("message").textContent=t;$("message").hidden=!t}
 function startChart(){if(chart||!L)return;chart=L.createChart($("chart"),{autoSize:true,layout:{background:{type:"solid",color:"#10151d"},textColor:"#9baec1",attributionLogo:true},grid:{vertLines:{color:"#202a37"},horzLines:{color:"#202a37"}},rightPriceScale:{borderColor:"#293444",scaleMargins:{top:.08,bottom:.18}},timeScale:{borderColor:"#293444",timeVisible:true,secondsVisible:false,rightOffset:5,barSpacing:7},crosshair:{mode:L.CrosshairMode.Normal}});
-chart.subscribeCrosshairMove(p=>{const a=typeof p.time==="number"?data[lowerBound(data,p.time)]:null;showOHLC(a?.time===p.time?a:data.at(-1))});
+chart.subscribeCrosshairMove(p=>{
+ const a=typeof p.time==="number"?data[lowerBound(data,p.time)]:null;
+ barHover=a?.time===p.time?a:null;const b=barHover||getPinnedBar()||data.at(-1);showOHLC(b);renderDataWindow(b);
+});
 makeSeries();applySettings();chart.timeScale().subscribeVisibleLogicalRangeChange(range=>{if(range&&range.from<30&&!historyBusy&&!busy&&!replayData&&hasHistory&&!historyEnded&&!csvOnlyMarket()){clearTimeout(historyTimer);historyTimer=setTimeout(()=>loadOlder(false),280)}});}
+function getPinnedBar(){const a=pinnedBar==null?null:data[lowerBound(data,pinnedBar)];return a?.time===pinnedBar?a:null}
+function renderDataWindow(a){
+ if($("dataPanel").hidden)return;
+ $("dataTime").textContent=a?symbol+" · "+new Intl.DateTimeFormat("en-GB",{timeZone:settings.zone,dateStyle:"medium",timeStyle:"short"}).format(new Date(a.time*1000))+" ("+settings.zone+")":"No data loaded";
+ const vals=a?(benchmarkMode()?[["Value",a.close]]:[["Open",a.open],["High",a.high],["Low",a.low],["Close",a.close],[goldArchive()?"Tick count":"Volume",a.volume]]):[];
+ if(a)for(const [label,points] of dataWindowLines){const row=points[lowerBound(points,a.time)];if(row?.time===a.time&&Number.isFinite(row.value))vals.push([label,row.value]);}
+ const dl=$("dataValues");dl.replaceChildren();for(const [label,value] of vals){const dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent=label;dd.textContent=price(value);dl.append(dt,dd)}
+}
 let seriesKind;
 function makeSeries(){if(!chart)return;seriesKind=benchmarkMode()?"benchmark":"ohlc";if(series)chart.removeSeries(series);const op={priceLineVisible:true,lastValueVisible:true,priceFormat:{type:"price",precision:2,minMove:.01}};
 if(benchmarkMode())series=chart.addSeries(L.LineSeries,{...op,color:"#57d7be",lineWidth:2});
@@ -49,11 +61,11 @@ else series=chart.addSeries(L.LineSeries,{...op,color:"#57d7be"});
 series.setData(seriesData());adjustPrecision();}
 function seriesData(){if(benchmarkMode())return data.map(a=>({time:a.time,value:a.close}));if(style==="heikin"){let prev;return data.map(a=>{const close=(a.open+a.high+a.low+a.close)/4,open=prev?(prev.open+prev.close)/2:(a.open+a.close)/2;return prev={time:a.time,open,close,high:Math.max(a.high,open,close),low:Math.min(a.low,open,close)}})}return style==="line"||style==="area"?data.map(a=>({time:a.time,value:a.close})):data.map(({time,open,high,low,close})=>({time,open,high,low,close}));}
 function adjustPrecision(){if(!series||!data.length)return;const p=Math.abs(data.at(-1).close)||1,precision=p>=1?2:Math.min(8,Math.max(3,Math.ceil(-Math.log10(p))+3));series.applyOptions({priceFormat:{type:"price",precision,minMove:10**(-precision)}})}
-function indicatorData(){if(!chart)return;for(const s of overlays)chart.removeSeries(s);overlays=[];liveVolumeSeries=null;const enabled=new Set(q("[data-ind]:checked:not(:disabled)").map(x=>x.dataset.ind));
-function line(points,color,title="",pane=0){const s=chart.addSeries(L.LineSeries,{color,title,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},pane);s.setData(points);overlays.push(s)}
+function indicatorData(){if(!chart)return;for(const s of overlays)chart.removeSeries(s);overlays=[];dataWindowLines=[];liveVolumeSeries=null;const enabled=new Set(q("[data-ind]:checked:not(:disabled)").map(x=>x.dataset.ind));
+function line(points,color,title="",pane=0){const s=chart.addSeries(L.LineSeries,{color,title,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},pane);s.setData(points);overlays.push(s);if(title)dataWindowLines.push([title,points])}
 if(enabled.has("vol")){const v=chart.addSeries(L.HistogramSeries,{priceScaleId:"",priceFormat:{type:"volume"},priceLineVisible:false,lastValueVisible:false});v.priceScale().applyOptions({scaleMargins:{top:.83,bottom:0}});v.setData(data.map(a=>({time:a.time,value:a.volume,color:a.close>=a.open?"#25be9560":"#f0607260"})));overlays.push(v);liveVolumeSeries=v}
-for(const [name,n,color] of [["ema20",20,"#f4b85b"],["ema50",50,"#8bb5ff"]])if(enabled.has(name)){let last;line(data.map(a=>({time:a.time,value:last=last===undefined?a.close:last+(a.close-last)*2/(n+1)})),color)}
-if(enabled.has("sma200"))line(data.slice(199).map((a,i)=>({time:a.time,value:data.slice(i,i+200).reduce((s,x)=>s+x.close,0)/200})),"#bb8af2");
+for(const [name,n,color] of [["ema20",20,"#f4b85b"],["ema50",50,"#8bb5ff"]])if(enabled.has(name)){let last;line(data.map(a=>({time:a.time,value:last=last===undefined?a.close:last+(a.close-last)*2/(n+1)})),color,"EMA "+n)}
+if(enabled.has("sma200"))line(data.slice(199).map((a,i)=>({time:a.time,value:data.slice(i,i+200).reduce((s,x)=>s+x.close,0)/200})),"#bb8af2","SMA 200");
 if(enabled.has("bb")){let bands=data.slice(19).map((a,i)=>{let arr=data.slice(i,i+20),m=arr.reduce((s,x)=>s+x.close,0)/20,sd=Math.sqrt(arr.reduce((s,x)=>s+(x.close-m)**2,0)/20);return {time:a.time,m,hi:m+2*sd,lo:m-2*sd}});for(const k of ["m","hi","lo"])line(bands.map(a=>({time:a.time,value:a[k]})),"#6b9ace")}
 const C=data.map(a=>a.close),H=data.map(a=>a.high),Lo=data.map(a=>a.low),V=data.map(a=>a.volume);
 if(!C.length)return;
@@ -74,7 +86,7 @@ if(enabled.has("roc")){pane++;plot(C.map((x,i)=>i<12?NaN:100*(x/C[i-12]-1)),"#81
 if(pane&&chart.panes){const height=$("chartarea").clientHeight;for(const p of chart.panes().slice(1))p.setHeight(Math.max(60,Math.min(120,Math.floor(height*.45/pane))))}
 }
 function showOHLC(a){if(benchmarkMode()){$("ohlc").textContent=a?(goldIntraday()?new Date(a.time*1000).toISOString().slice(11,16)+" UTC":new Date(a.time*1000).toISOString().slice(0,10))+" · "+price(a.close):"No observation";return}$("ohlc").textContent=a?"O "+price(a.open)+" H "+price(a.high)+" L "+price(a.low)+" C "+price(a.close):"O — H — L — C —"}
-function details(){let a=data.at(-1),p=data.at(-2);if(a&&!replayData)checkAlerts(a.close);$("quote").textContent=a?"$"+price(a.close):"—";let change=a&&p&&p.close>0?(a.close/p.close-1)*100:null;$("change").textContent=change===null?"":(change>=0?"+":"")+change.toFixed(2)+"%";$("change").className=change>=0?"up":"down";showOHLC(a);$("details").replaceChildren();for(const [label,value] of (benchmarkMode()?[[goldIntraday()?"Last sample":"Published value",a?.close]]:[["Open",a?.open],["High",a?.high],["Low",a?.low],["Close",a?.close],[goldArchive()?"Tick count":"Volume",a?.volume]])){const e=document.createElement("span"),b=document.createElement("b");b.textContent=label;e.append(b,price(value));$("details").append(e)}}
+function details(){let a=data.at(-1),p=data.at(-2);if(a&&!replayData)checkAlerts(a.close);$("quote").textContent=a?"$"+price(a.close):"—";let change=a&&p&&p.close>0?(a.close/p.close-1)*100:null;$("change").textContent=change===null?"":(change>=0?"+":"")+change.toFixed(2)+"%";$("change").className=change>=0?"up":"down";showOHLC(a);$("details").replaceChildren();for(const [label,value] of (benchmarkMode()?[[goldIntraday()?"Last sample":"Published value",a?.close]]:[["Open",a?.open],["High",a?.high],["Low",a?.low],["Close",a?.close],[goldArchive()?"Tick count":"Volume",a?.volume]])){const e=document.createElement("span"),b=document.createElement("b");b.textContent=label;e.append(b,price(value));$("details").append(e)}renderDataWindow(barHover||getPinnedBar()||a)}
 const localImport=()=>imported?.symbol===symbol&&imported.interval===interval;
 const goldArchive=()=>symbol==="XAUUSD"&&benchmarkFrame==="1m"&&!localImport();
 const usingImport=()=>localImport()||goldArchive();
@@ -86,7 +98,7 @@ const goldIntraday=()=>benchmarkMode()&&symbol==="XAUUSD"&&["5m","15m","30m","1h
 const stepSeconds=()=>benchmarkMode()?({"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400,day:86400,week:604800,month:2629800,year:31557600}[benchmarkFrame]||2629800):interval*60;
 const benchmarkRestricted=new Set(["vol","vwap","donchian","atr","stoch","obv","cci","fvg","sweep"]);
 function csvOnlyMarket(){return !usingImport()&&!benchmarkMode()&&(Object.hasOwn(commodities,symbol)||Object.hasOwn(otherMarkets,symbol))}
-function nativeControls(on){const bm=on&&benchmarkMode();const archived=on&&goldArchive();document.body.classList.toggle("benchmark-mode",bm);document.body.classList.toggle("gold-archive",archived);$("benchmarkFrames").hidden=!bm&&!archived;$("benchmarkCredit").hidden=(!bm&&!archived)||!benchmarkInfo;$("benchmarkExport").hidden=(!bm&&!archived)||!benchmarkInfo;$("goldLicense").hidden=!archived||!benchmarkInfo;$("alertOpen").title=bm?"Alerts require a live feed":"Price alerts";q(".tools button,.bottom button,[data-ind],#style,#color,#indOpen,#goDate,#settingsOpen,#alertOpen").forEach(b=>b.disabled=!on);$("replayPlay").disabled=!on||!replayData;$("replaySpeed").disabled=!on||!replayData;$("older").disabled=!on||!hasHistory||historyEnded||historyBusy||!!replayData;$("step").disabled=!on||!replayData;$("live").disabled=!on||!replayData;for(const input of q("[data-ind]")){input.disabled=!on||(bm&&benchmarkRestricted.has(input.dataset.ind));input.closest("label").title=input.disabled&&bm?"Not available with benchmark observations":""}if(bm){$("alertOpen").disabled=true;if(data.some(a=>a.close<=0))$("log").disabled=true}
+function nativeControls(on){const bm=on&&benchmarkMode();syncReplayControls();$("replay").disabled=!on;const archived=on&&goldArchive();document.body.classList.toggle("benchmark-mode",bm);document.body.classList.toggle("gold-archive",archived);$("benchmarkFrames").hidden=!bm&&!archived;$("benchmarkCredit").hidden=(!bm&&!archived)||!benchmarkInfo;$("benchmarkExport").hidden=(!bm&&!archived)||!benchmarkInfo;$("goldLicense").hidden=!archived||!benchmarkInfo;$("alertOpen").title=bm?"Alerts require a live feed":"Price alerts";q(".tools button,.bottom button,[data-ind],#style,#color,#indOpen,#goDate,#settingsOpen,#alertOpen").forEach(b=>b.disabled=!on);$("replayPlay").disabled=!on||!replayData;$("replaySpeed").disabled=!on||!replayData;$("older").disabled=!on||!hasHistory||historyEnded||historyBusy||!!replayData;$("step").disabled=!on||!replayData;$("live").disabled=!on||!replayData;for(const input of q("[data-ind]")){input.disabled=!on||(bm&&benchmarkRestricted.has(input.dataset.ind));input.closest("label").title=input.disabled&&bm?"Not available with benchmark observations":""}if(bm){$("alertOpen").disabled=true;if(data.some(a=>a.close<=0))$("log").disabled=true}
 $("chart").style.visibility=on?"visible":"hidden";canvas.style.display=on?"block":"none";}
 function showUnavailable(){
   stopLive();controller?.abort();seq++;busy=false;historyBusy=false;hasHistory=false;historyEnded=true;clearTimeout(historyTimer);
@@ -112,7 +124,7 @@ function candleTime(t){const step=interval*60,offset=step===604800?345600:0;retu
 function applyTrade(t,record=true,priceOnly=false){if(!Number.isFinite(t.p)||t.p<=0||!Number.isFinite(t.t)||!Number.isFinite(t.q)||t.q<0||!data.length)return;if(record){if(t.id!=="undefined"&&liveSeen.has(t.id))return;if(t.id!=="undefined"){liveSeen.add(t.id);if(liveSeen.size>2000)liveSeen.delete(liveSeen.values().next().value)}if(syncInProgress){tradeBuffer.push(t);if(tradeBuffer.length>5000)tradeBuffer.shift()}}const time=candleTime(t.t),last=data.at(-1);if(time<last.time||t.t<lastTradeAt)return;lastTradeAt=t.t;const newBar=time>last.time;if(newBar){data.push({time,open:t.p,high:t.p,low:t.p,close:t.p,volume:t.q});if(data.length>MAX_BARS+1000){data.splice(0,1);historyEnded=true;series.setData(seriesData())}}else{last.high=Math.max(last.high,t.p);last.low=Math.min(last.low,t.p);last.close=t.p;if(!priceOnly)last.volume+=t.q}if(record)liveTradeCount++;liveDirty=true;checkAlerts(t.p)}
 function renderLive(now){liveFrame=0;if(!liveDirty||csvOnlyMarket()||replayData||!series||!data.length)return;liveDirty=false;const last=data.at(-1);try{if(style==="heikin"){const n=seriesData();if(lastRenderedTime&&last.time-lastRenderedTime>interval*60)series.setData(n);else series.update(n.at(-1))}else if(lastRenderedTime&&last.time-lastRenderedTime>interval*60){series.setData(seriesData())}else if(style==="line"||style==="area")series.update({time:last.time,value:last.close});else series.update({time:last.time,open:last.open,high:last.high,low:last.low,close:last.close});lastRenderedTime=last.time;if(liveVolumeSeries)liveVolumeSeries.update({time:last.time,value:last.volume,color:last.close>=last.open?"#25be9560":"#f0607260"});if(now-lastIndicatorUpdate>=1500&&q("[data-ind]:checked").some(x=>!["vol","fvg","sweep"].includes(x.dataset.ind))){const range=chart.timeScale().getVisibleLogicalRange();try{indicatorData()}catch{}if(range)chart.timeScale().setVisibleLogicalRange(range);lastIndicatorUpdate=now}details();historyLabel();const e=$("tradeInfo");if(e)e.textContent="Trades received: "+liveTradeCount.toLocaleString()+" · Last trade "+new Date(lastTradeAt*1000).toLocaleTimeString();if(!historyBusy&&!busy)notify(sourceName+" · Streaming")}catch(e){console.warn("Live candle",e)}}
 function mergeBars(old,rows){return [...new Map([...old,...rows].map(a=>[a.time,a])).values()].sort((a,b)=>a.time-b.time)}
-function historyLabel(){const first=data[0]?.time,last=data.at(-1)?.time;if(!first||!last){$("historyInfo").textContent="No candle history";$("older").disabled=true;return}const fmt=t=>new Date(t*1000).toISOString().slice(0,10);if(benchmarkMode()){$("historyInfo").textContent=data.length.toLocaleString()+" observations · "+fmt(first)+" to "+fmt(last)+" · "+(replayData?"Replay":"All available history loaded");$("older").disabled=true;return}$("historyInfo").textContent=data.length.toLocaleString()+" bars · "+fmt(first)+" to "+fmt(last)+(usingImport()?(replayData?" · Replay":" · CSV history"):historyEnded?" · History limit reached":!hasHistory?" · Exchange history limited":" · Scroll left for older candles");$("older").disabled=historyBusy||!hasHistory||historyEnded||!!replayData;}
+function historyLabel(){$("csvExport").disabled=!data.length;$("csvExport").hidden=benchmarkMode()||goldArchive();const first=data[0]?.time,last=data.at(-1)?.time;if(!first||!last){$("historyInfo").textContent="No candle history";$("older").disabled=true;return}const fmt=t=>new Date(t*1000).toISOString().slice(0,10);if(benchmarkMode()){$("historyInfo").textContent=data.length.toLocaleString()+" observations · "+fmt(first)+" to "+fmt(last)+" · "+(replayData?"Replay":"All available history loaded");$("older").disabled=true;return}$("historyInfo").textContent=data.length.toLocaleString()+" bars · "+fmt(first)+" to "+fmt(last)+(usingImport()?(replayData?" · Replay":" · CSV history"):historyEnded?" · History limit reached":!hasHistory?" · Exchange history limited":" · Scroll left for older candles");$("older").disabled=historyBusy||!hasHistory||historyEnded||!!replayData;}
 function updateChart(range){adjustPrecision();series.setData(seriesData());lastRenderedTime=data.at(-1)?.time||0;try{indicatorData()}catch(e){console.warn("Indicator rendering",e)}details();if(range)chart.timeScale().setVisibleLogicalRange(range);historyLabel();}
 async function getCandles(params,signal){const url="/api/candles?"+new URLSearchParams({symbol,interval:String(interval),...params});const r=await fetch(url,{signal});const p=await r.json();if(!r.ok||!Array.isArray(p.candles))throw Error(p.error||"Candle data unavailable");return p;}
 async function loadOlder(manual=true){if(csvOnlyMarket()||replayData||busy||historyBusy||!hasHistory||historyEnded||!nextBefore||!data.length)return;if(!manual&&Date.now()<historyDelay)return;const ticket=seq,k=key(),cursor=nextBefore;historyBusy=true;historyLabel();notify("Loading earlier candles…");
@@ -147,7 +159,7 @@ $("drawingTextForm").onsubmit=e=>{
  if(!draft||draft.key!==drawingKey())return;
  const i=draft.existing?drawings.indexOf(draft.existing):drawings.length;if(i<0)return;
  changeDraw(()=>{if(draft.existing)drawings[i].text=text;else drawings.push({type:"text",a:draft.point,text,color:$("color").value})});
- setTool("cursor");chooseDrawing(i);$("drawingTextDialog").close();notify("Chart text saved");
+ setTool(keepDrawing&&!draft.existing?"text":"cursor");chooseDrawing(i);$("drawingTextDialog").close();notify("Chart text saved");
 };
 $("drawingColorOpen").onclick=()=>{
  const d=drawings[selected];if(!d)return;colorDraft={drawing:d,key:drawingKey()};
@@ -166,7 +178,7 @@ function syncBoxActions(){
  const d=drawings[selected],show=!csvOnlyMarket()&&!hidden&&!!d,box=d?.type==="rectangle",text=d?.type==="text";
  $("boxActions").hidden=!show;$("boxOptions").hidden=!show||!box;
  $("boxEditText").hidden=!box&&!text;$("boxEditText").textContent=d?.text?"Edit text":"Add text";
- $("boxMove").textContent=box?"Move / resize":"Move";
+ $("boxMove").textContent=box?"Move / resize":"Move";$("boxMove").disabled=!!lockDrawings;
  $("boxMove").setAttribute("aria-pressed",tool==="edit");
 }
 function chooseDrawing(i){selected=i;renderObjects()}
@@ -175,8 +187,8 @@ $("boxMove").onclick=()=>{setTool(tool==="edit"?"cursor":"edit");if(tool==="edit
 $("boxDelete").onclick=()=>{if(!drawings[selected])return;const i=selected;changeDraw(()=>drawings.splice(i,1));setTool("cursor");notify("Drawing deleted · Undo restores it")};
 $("boxDismiss").onclick=()=>{setTool("cursor");chooseDrawing(-1)};
 function renderObjects(){syncBoxActions();if(csvOnlyMarket())return;const e=$("objects");e.replaceChildren();drawings.forEach((d,i)=>{const row=document.createElement("div");row.className="objectrow";const a=document.createElement("button"),b=document.createElement("button");a.textContent=(i+1)+". "+(d.text||d.type);a.className=selected===i?"active":"";a.onclick=()=>chooseDrawing(i);b.textContent="×";b.title="Delete drawing";b.onclick=()=>changeDraw(()=>drawings.splice(i,1));row.append(a);if(d.type==="rectangle"||d.type==="text"){const c=document.createElement("button");c.textContent="⚙";c.title=d.type==="rectangle"?"Edit box":"Edit text";c.setAttribute("aria-label",c.title+" "+(d.text||i+1));c.onclick=()=>d.type==="rectangle"?openBox(i):openDrawingText(i);row.append(c)}row.append(b);e.append(row)});if(!drawings.length)e.textContent="No drawings yet"}
-function select(s){s=normalize(s);if(!valid(s))return;stopLive();stopPlayback();replayData=null;seq++;busy=false;if(symbol!==s)benchmarkFrame=null;symbol=s;recents=[s,...recents.filter(x=>x!==s)].slice(0,12);save("ledger_recents_v1",recents);updateStar();$("symbol").value=s;drawings=Array.isArray(all[drawingKey()])?clone(all[drawingKey()]):[];past=[];future=[];selected=-1;setTool("cursor");preferences();const url=new URL(location.href);if(!benchmarkMode()&&!goldArchive())url.searchParams.delete("period");url.searchParams.set("symbol",s);url.searchParams.delete("engine");history.replaceState(null,"",url);renderWatch();renderObjects();load(true)}
-function setTool(t){if(editDrag){drawings=editDrag.before;editDrag=null}tool=t;pending=null;preview=null;thirdPoint=null;q("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===t));canvas.classList.toggle("armed",t!=="cursor");syncBoxActions();$("hint").textContent=t==="cursor"?"Crosshair":t==="edit"?"Drag a handle to move a drawing or a box corner to resize":t==="text"?"Tap a box to label it, or tap the chart to add a note":t+" · select point"}
+function select(s,frame){s=normalize(s);if(!valid(s))return;barHover=null;pinnedBar=null;setReplayPicking(false);stopLive();stopPlayback();replayData=null;seq++;busy=false;if(frame!==undefined||symbol!==s)benchmarkFrame=frame??null;symbol=s;recents=[s,...recents.filter(x=>x!==s)].slice(0,12);save("ledger_recents_v1",recents);updateStar();$("symbol").value=s;drawings=Array.isArray(all[drawingKey()])?clone(all[drawingKey()]):[];past=[];future=[];selected=-1;setTool("cursor");preferences();const url=new URL(location.href);if(!benchmarkMode()&&!goldArchive())url.searchParams.delete("period");url.searchParams.set("symbol",s);url.searchParams.delete("engine");history.replaceState(null,"",url);renderWatch();renderObjects();load(true)}
+function setTool(t){if(t==="edit"&&lockDrawings){notify("Drawing positions are locked");return}if(editDrag){drawings=editDrag.before;editDrag=null}tool=t;pending=null;preview=null;thirdPoint=null;q("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===t));canvas.classList.toggle("armed",t!=="cursor");syncBoxActions();$("hint").textContent=t==="cursor"?"Crosshair":t==="edit"?"Drag a handle to move a drawing or a box corner to resize":t==="text"?"Tap a box to label it, or tap the chart to add a note":t+" · select point"}
 function resize(){const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;if(canvas.width!==Math.round(r.width*d)||canvas.height!==Math.round(r.height*d)){canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d)}ctx.setTransform(d,0,0,d,0,0);return r}
 function point(e){if(!series||!data.length)return null;const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,ts=chart.timeScale();if(x<0||x>ts.width()||y<0||y>(chart.panes?.()[0]?.getHeight?.()||r.height-25))return null;const ix=ts.coordinateToLogical(x),p=series.coordinateToPrice(y);if(ix==null||p==null||!Number.isFinite(p))return null;const i=Math.round(ix);let a=data[i],time=a?.time??(data[0].time+i*stepSeconds()),value=p;if(magnet&&a)value=[a.open,a.high,a.low,a.close].sort((a,b)=>Math.abs(a-p)-Math.abs(b-p))[0];return {time,price:value}}
 function lowerBound(bars,t){let lo=0,hi=bars.length;while(lo<hi){const m=(lo+hi)>>1;if(bars[m].time<t)lo=m+1;else hi=m}return lo}
@@ -274,7 +286,9 @@ function drawingAt(e){
 const chartArea=$("chartarea");let tap=null;
 function isPlotTarget(e){return $("chart").contains(e.target)}
 chartArea.addEventListener("pointerdown",e=>{if(tool==="cursor"&&!hidden&&data.length&&e.isPrimary&&e.button===0&&isPlotTarget(e))tap={id:e.pointerId,x:e.clientX,y:e.clientY}},true);
-chartArea.addEventListener("pointerup",e=>{const t=tap;tap=null;if(!t||e.pointerId!==t.id||tool!=="cursor"||!isPlotTarget(e)||Math.hypot(e.clientX-t.x,e.clientY-t.y)>9)return;const i=point(e)?drawingAt(e):-1;if(selected!==i)chooseDrawing(i)},true);
+chartArea.addEventListener("pointerup",e=>{const t=tap;tap=null;if(!t||e.pointerId!==t.id||tool!=="cursor"||!isPlotTarget(e)||Math.hypot(e.clientX-t.x,e.clientY-t.y)>9)return;const pos=point(e);if(replayPicking){if(pos)startReplayAt(pos.time);return}
+ if(pos){const a=data[lowerBound(data,pos.time)];pinnedBar=a?.time??null;renderDataWindow(a||data.at(-1))}
+ const i=pos?drawingAt(e):-1;if(selected!==i)chooseDrawing(i)},true);
 chartArea.addEventListener("pointercancel",()=>{tap=null},true);
 chartArea.addEventListener("dblclick",e=>{if((tool==="edit"&&e.target===canvas)||(tool==="cursor"&&isPlotTarget(e))){const i=drawingAt(e);if(drawings[i]?.type==="rectangle")openBox(i);else if(drawings[i]?.type==="text")openDrawingText(i)}},true);
 document.addEventListener("keydown",e=>{if(e.key==="Shift")shiftDrawing=true});document.addEventListener("keyup",e=>{if(e.key==="Shift")shiftDrawing=false});window.addEventListener("blur",()=>{shiftDrawing=false});
@@ -294,34 +308,95 @@ function grabAnchor(e){
  if(!hit){const i=drawingAt(e),start=point(e);if(drawings[i]?.type!=="rectangle"||!start){chooseDrawing(i);return}hit={index:i,field:"body",start}}
  chooseDrawing(hit.index);editDrag={...hit,pointer:e.pointerId,before:clone(drawings),changed:false};canvas.setPointerCapture(e.pointerId)
 }
-canvas.addEventListener("pointerdown",e=>{if(tool==="cursor"||hidden)return;if(tool==="edit"){grabAnchor(e);return}if(tool==="avwap"&&!data.some(bar=>bar.volume>0)){$("hint").textContent="Anchored VWAP requires volume";return}const p=straight(thirdPoint?null:pending,point(e),e.shiftKey,tool);if(!p)return;let d={type:tool,a:pending||p,color:$("color").value};if(tool==="text"){const i=boxAt(e);setTool("cursor");if(i>=0)openBox(i);else openDrawingText(-1,p);return}if(["horizontal","vertical","hRay","avwap"].includes(tool)){changeDraw(()=>drawings.push(d));setTool("cursor")}else if(!pending){pending=p;$("hint").textContent=tool+" · second point"}else if(["long","short","channel","fibExt"].includes(tool)&&!thirdPoint){if((tool==="long"&&p.price>=pending.price)||(tool==="short"&&p.price<=pending.price)){$("hint").textContent="Select stop on correct side of entry";return}thirdPoint=p;$("hint").textContent=tool==="channel"?"Select channel width":tool==="fibExt"?"Select projection start":"Select target"}else{d.b=thirdPoint||p;if(thirdPoint){if((tool==="long"&&p.price<=pending.price)||(tool==="short"&&p.price>=pending.price)){$("hint").textContent="Select target on correct side of entry";return}d.c=p}changeDraw(()=>drawings.push(d));setTool("cursor");if(d.type==="rectangle"){chooseDrawing(drawings.length-1);notify("Box selected · use Add text, Change color, Move / resize or Delete")}}});
+canvas.addEventListener("pointerdown",e=>{if(tool==="cursor"||hidden)return;if(tool==="edit"){grabAnchor(e);return}if(tool==="avwap"&&!data.some(bar=>bar.volume>0)){$("hint").textContent="Anchored VWAP requires volume";return}const p=straight(thirdPoint?null:pending,point(e),e.shiftKey,tool);if(!p)return;let d={type:tool,a:pending||p,color:$("color").value};if(tool==="text"){const i=boxAt(e);setTool("cursor");if(i>=0)openBox(i);else openDrawingText(-1,p);return}if(["horizontal","vertical","hRay","avwap"].includes(tool)){changeDraw(()=>drawings.push(d));setTool(keepDrawing?d.type:"cursor")}else if(!pending){pending=p;$("hint").textContent=tool+" · second point"}else if(["long","short","channel","fibExt"].includes(tool)&&!thirdPoint){if((tool==="long"&&p.price>=pending.price)||(tool==="short"&&p.price<=pending.price)){$("hint").textContent="Select stop on correct side of entry";return}thirdPoint=p;$("hint").textContent=tool==="channel"?"Select channel width":tool==="fibExt"?"Select projection start":"Select target"}else{d.b=thirdPoint||p;if(thirdPoint){if((tool==="long"&&p.price<=pending.price)||(tool==="short"&&p.price>=pending.price)){$("hint").textContent="Select target on correct side of entry";return}d.c=p}changeDraw(()=>drawings.push(d));setTool(keepDrawing?d.type:"cursor");if(d.type==="rectangle"&&!keepDrawing){chooseDrawing(drawings.length-1);notify("Box selected · use Add text, Change color, Move / resize or Delete")}}});
 $("search").onsubmit=e=>{e.preventDefault();select($("symbol").value)};
 $("addwatch").onclick=()=>{if(!Object.hasOwn(commodities,symbol)&&!Object.hasOwn(otherMarkets,symbol)&&!watch.includes(symbol)){watch.push(symbol);save("ledger_chart_watch_v1",watch);renderWatch()}};
-q("[data-i]").forEach(b=>b.onclick=()=>{stopLive();stopPlayback();interval=Number(b.dataset.i);replayData=null;q("[data-i]").forEach(x=>x.classList.toggle("active",Number(x.dataset.i)===interval));preferences();setTool("cursor");load(true)});
-q("[data-tool]").forEach(b=>b.onclick=()=>{if(hidden){hidden=false;$("hide").classList.remove("active")}setTool(b.dataset.tool)});
+q("[data-i]").forEach(b=>b.onclick=()=>{barHover=null;pinnedBar=null;setReplayPicking(false);stopLive();stopPlayback();interval=Number(b.dataset.i);replayData=null;q("[data-i]").forEach(x=>x.classList.toggle("active",Number(x.dataset.i)===interval));preferences();setTool("cursor");load(true)});
+q("[data-tool]").forEach(b=>b.onclick=()=>{if(replayPicking)setReplayPicking(false);if(hidden){hidden=false;$("hide").classList.remove("active")}setTool(b.dataset.tool)});
 $("style").value=style;$("style").onchange=()=>{style=$("style").value;makeSeries();preferences()};
 q("[data-ind]").forEach(b=>{if(Array.isArray(prefs.ind))b.checked=prefs.ind.includes(b.dataset.ind);b.onchange=()=>{preferences();try{indicatorData()}catch(e){notify("Indicator error: "+e.message)}}});
 $("older").onclick=()=>loadOlder(true);$("watchSearch").oninput=renderWatch;$("indicatorSearch").oninput=()=>{const f=$("indicatorSearch").value.toLowerCase();q(".indicatorbox label").forEach(l=>l.hidden=!l.textContent.toLowerCase().includes(f))};$("refresh").onclick=()=>{if(benchmarkMode()&&!replayData){loadBenchmark({refresh:true});return}stopPlayback();stopLive();if(replayData)data=replayData;replayData=null;load(true)};$("fit").onclick=()=>chart?.timeScale().fitContent();
 $("goLatest").onclick=()=>{if(!chart||!data.length)return;const t=chart.timeScale(),r=t.getVisibleLogicalRange(),width=r?Math.max(10,Math.min(200,r.to-r.from)):95;t.setVisibleLogicalRange({from:Math.max(0,data.length-width+5),to:data.length+5});notify(replayData?"At latest replayed observation":"Showing latest loaded data")};
 q("[data-range]").forEach(b=>b.onclick=()=>{if(data.length)chart.timeScale().setVisibleLogicalRange({from:Math.max(0,data.length-Number(b.dataset.range)),to:data.length+5})});
 $("log").onclick=()=>{log=!log;chart.priceScale("right").applyOptions({mode:log?L.PriceScaleMode.Logarithmic:L.PriceScaleMode.Normal});$("log").classList.toggle("active",log)};
+function setDrawingToggles(){
+ for(const [id,on] of [["keepDrawing",keepDrawing],["lockDrawings",lockDrawings]]){
+  $(id).classList.toggle("active",!!on);$(id).setAttribute("aria-pressed",String(!!on));
+ }
+ syncBoxActions();
+}
+$("keepDrawing").onclick=()=>{keepDrawing=!keepDrawing;save("ledger_keep_drawing",keepDrawing);setDrawingToggles();notify(keepDrawing?"Keep drawing enabled":"Keep drawing disabled")};
+$("lockDrawings").onclick=()=>{lockDrawings=!lockDrawings;save("ledger_lock_drawings",lockDrawings);if(lockDrawings&&tool==="edit")setTool("cursor");setDrawingToggles();notify(lockDrawings?"Drawing positions locked":"Drawing positions unlocked")};
+setDrawingToggles();
 $("magnet").onclick=()=>{magnet=!magnet;$("magnet").classList.toggle("active",magnet)};
 $("hide").onclick=()=>{hidden=!hidden;$("hide").classList.toggle("active",hidden);setTool("cursor")};
 $("undo").onclick=()=>{if(past.length){future.push(clone(drawings));drawings=past.pop();selected=-1;saveDraw()}};
 $("redo").onclick=()=>{if(future.length){past.push(clone(drawings));drawings=future.pop();selected=-1;saveDraw()}};
 $("clear").onclick=()=>{if(drawings.length&&confirm("Delete all drawings for "+symbol+"?"))changeDraw(()=>drawings=[])};
 $("fullscreen").onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen()}catch{notify("Fullscreen is not available in this browser.")}};
-$("replay").onclick=()=>{if(data.length<3||replayData){notify("Load at least three bars to start replay");return}const iso=i=>new Date(data[i].time*1000).toISOString().slice(0,16),input=$("replayStart");input.min=iso(0);input.max=iso(data.length-2);input.value=iso(Math.max(0,data.length-100));$("replayError").textContent="";showDialog("replayDialog")};
-$("replayBegin").onclick=()=>{const t=Date.parse($("replayStart").value+"Z")/1000,i=lowerBound(data,t);if(!Number.isFinite(t)||t<data[0]?.time||i>=data.length-1){$("replayError").textContent="Choose a time before the last loaded bar and within loaded history.";return}$("replayDialog").close();stopLive();replayData=data.slice();replayIndex=i+1;setLiveStatus("replay");replayStep();nativeControls(true);};function replayStep(){data=replayData.slice(0,replayIndex);updateChart(null);chart.timeScale().setVisibleLogicalRange({from:Math.max(0,data.length-90),to:data.length+5});notify("Replay · "+replayIndex+"/"+replayData.length+" bars");$("step").disabled=replayIndex>=replayData.length;}$("step").onclick=()=>{if(replayData&&replayIndex<replayData.length){replayIndex++;replayStep()}};$("live").onclick=()=>{stopPlayback();if(replayData){data=replayData;replayData=null;updateChart(null);chart.timeScale().setVisibleLogicalRange({from:Math.max(0,data.length-90),to:data.length+5});nativeControls(true);load(true)}};
+function syncReplayControls(){
+ $("replayBar").hidden=!replayData&&!replayPicking;
+ $("replay").setAttribute("aria-pressed",String(!!replayData||replayPicking));
+ $("replayCancelPick").hidden=!replayPicking;
+ for(const id of ["replayPlay","step","replaySpeed","live"])$(id).hidden=!replayData;
+}
+function setReplayPicking(on){
+ replayPicking=on;document.body.classList.toggle("replay-pick",on);syncReplayControls();
+ if(on){$("replayProgress").textContent="Tap a candle to start";notify("Pick a bar before the last candle");}
+}
+$("replayCancelPick").onclick=()=>{setReplayPicking(false);notify("Replay selection cancelled")};
+$("replayPick").onclick=()=>{$("replayDialog").close();setTool("cursor");setReplayPicking(true)};
+$("replay").onclick=()=>{if(replayPicking){$("replayCancelPick").click();return}if(replayData){$("live").click();return}if(data.length<3){notify("Load at least three bars to start replay");return}const iso=i=>new Date(data[i].time*1000).toISOString().slice(0,16),input=$("replayStart");input.min=iso(0);input.max=iso(data.length-2);input.value=iso(Math.max(0,data.length-100));$("replayError").textContent="";showDialog("replayDialog")};
+function startReplayAt(t){
+ const i=lowerBound(data,t);if(busy||historyBusy||!Number.isFinite(t)||t<data[0]?.time||i>=data.length-1){
+  const msg=busy||historyBusy?"Wait for history to finish loading.":"Choose a time before the last loaded bar and within loaded history.";
+  if($("replayDialog").open)$("replayError").textContent=msg;else notify(msg);return;
+ }
+ if($("replayDialog").open)$("replayDialog").close();setReplayPicking(false);stopLive();barHover=null;pinnedBar=null;
+ replayData=data.slice();replayIndex=i+1;setLiveStatus("replay");nativeControls(true);replayStep();
+}
+$("replayBegin").onclick=()=>startReplayAt(Date.parse($("replayStart").value+"Z")/1000);
+function replayStep(){
+ data=replayData.slice(0,replayIndex);barHover=null;updateChart(null);chart.timeScale().setVisibleLogicalRange({from:Math.max(0,data.length-90),to:data.length+5});
+ $("replayProgress").textContent=new Date(data.at(-1).time*1000).toISOString().slice(0,16).replace("T"," ")+" UTC";
+ notify("Replay · "+replayIndex+"/"+replayData.length+" bars");const ended=replayIndex>=replayData.length;
+ $("step").disabled=ended;$("replayPlay").disabled=ended;if(ended)stopPlayback();
+}
+$("step").onclick=()=>{if(replayData&&replayIndex<replayData.length){replayIndex++;replayStep()}};
+$("live").onclick=()=>{stopPlayback();if(replayData){data=replayData;replayData=null;barHover=null;updateChart(null);chart.timeScale().setVisibleLogicalRange({from:Math.max(0,data.length-90),to:data.length+5});nativeControls(true);load(true)}};
+$("csvExport").onclick=()=>{
+ if(!data.length||benchmarkMode()||goldArchive())return;
+ const rows=data.map(a=>[new Date(a.time*1000).toISOString(),a.open,a.high,a.low,a.close,a.volume].join(","));
+ const url=URL.createObjectURL(new Blob(["time,open,high,low,close,volume\n",rows.join("\n"),"\n"],{type:"text/csv;charset=utf-8"}));
+ const link=document.createElement("a");link.href=url;link.download=symbol+"-"+interval+"min"+(replayData?"-replay":"")+"-Ledger.csv";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
 $("snapshot").onclick=()=>{if(!chart)return;const shot=chart.takeScreenshot();const c=shot.getContext("2d");c.drawImage(canvas,0,0,shot.width,shot.height);const a=document.createElement("a");a.href=shot.toDataURL("image/png");a.download="ledger-"+symbol+".png";a.click()};
-document.addEventListener("keydown",e=>{if(document.querySelector("dialog[open]"))return;if(e.key==="Escape"){setTool("cursor");chooseDrawing(-1)}if(e.key==="Delete"&&selected>=0&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){$("boxDelete").click()}});
+document.addEventListener("keydown",e=>{if(document.querySelector("dialog[open]"))return;if(e.key==="Escape"){if(replayPicking)$("replayCancelPick").click();if(document.body.classList.contains("sidebar-open"))togglePanel(false);setTool("cursor");chooseDrawing(-1)}
+ if(!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){
+   if(replayData&&e.code==="Space"&&document.activeElement.tagName!=="BUTTON"){e.preventDefault();if(!$("replayPlay").disabled)play()}
+   else if(replayData&&e.key==="ArrowRight"){e.preventDefault();$("step").click()}
+   else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();$(e.shiftKey?"redo":"undo").click()}
+ }if(e.key==="Delete"&&selected>=0&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){$("boxDelete").click()}});
 q("[data-i]").forEach(b=>b.classList.toggle("active",Number(b.dataset.i)===interval));
 
 // Workstation controls and local preferences.
 const showDialog=id=>{const d=$(id);if(!d.open)d.showModal()};
 q("[data-close]").forEach(b=>b.onclick=()=>$(b.dataset.close).close());
-function sideTab(name){q("[data-side]").forEach(b=>b.classList.toggle("active",b.dataset.side===name));$("watchPanel").hidden=name!=="watch";$("objectPanel").hidden=name!=="objects";$("alertsPanel").hidden=name!=="alerts";}
-q("[data-side]").forEach(b=>b.onclick=()=>sideTab(b.dataset.side));$("focusMode").onclick=()=>{document.body.classList.toggle("focus")};
+const smallScreen=window.matchMedia("(max-width:730px)");
+function togglePanel(open){
+ if(smallScreen.matches){document.body.classList.toggle("sidebar-open",open);$("focusMode").setAttribute("aria-expanded",String(open));}
+ else{document.body.classList.toggle("focus",!open);$("focusMode").setAttribute("aria-expanded",String(open));}
+}
+function sideTab(name){
+ q("[data-side]").forEach(b=>{const active=b.dataset.side===name;b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active))});
+ for(const [tab,id] of Object.entries({watch:"watchPanel",objects:"objectPanel",alerts:"alertsPanel",data:"dataPanel"}))$(id).hidden=tab!==name;
+ if(name==="data")renderDataWindow(barHover||getPinnedBar()||data.at(-1));
+}
+q("[data-side]").forEach(b=>b.onclick=()=>sideTab(b.dataset.side));sideTab("watch");
+$("focusMode").onclick=()=>togglePanel($("focusMode").getAttribute("aria-expanded")!=="true");
+$("closePanel").onclick=()=>{togglePanel(false);$("focusMode").focus()};
+const panelBreakpoint=()=>{document.body.classList.remove("sidebar-open","focus");togglePanel(!smallScreen.matches)};
+smallScreen.addEventListener("change",panelBreakpoint);panelBreakpoint();
 const catalog=[...Object.entries(cryptoNames).map(([s,n])=>({s,n,cat:"Crypto"})),...Object.entries(commodities).map(([s,v])=>({s,n:v[0],cat:"Commodities"})),...Object.entries(otherMarkets).map(([s,v])=>({s,n:v[0],cat:v[1]}))];
 let category="All",symbolActive=-1;
 const findSymbol=s=>catalog.find(x=>x.s===s)||{s,n:"Exchange market",cat:"Crypto"};
@@ -396,7 +471,39 @@ async function refresh(){if(ticket!==compareEpoch)return;try{compareAbort=new Ab
 }catch{if(ticket===compareEpoch)target.textContent="Chart engine unavailable."}}
 function storeLayout(){save("ledger_layout_v1",{layout:comparison,compare:$("compareSymbol").value,compareInterval:$("compareInterval").value})}
 function setLayout(mode,remember=true){if(!layouts.includes(mode))return;comparison=mode;if(remember)storeLayout();$("comparePane").hidden=mode==="single";$("chartdeck").classList.toggle("stacked",mode==="vertical");if(mode==="single")disposeComparison();else renderComparison();$("layoutDialog").close()}
-$("layoutOpen").onclick=()=>showDialog("layoutDialog");q("[data-layout]").forEach(b=>b.onclick=()=>setLayout(b.dataset.layout));$("compareClose").onclick=()=>setLayout("single");$("compareSymbol").onchange=$("compareInterval").onchange=()=>{storeLayout();renderComparison()};
+let workspaces=read("ledger_workspaces_v1",[]);
+if(!Array.isArray(workspaces))workspaces=[];
+function listWorkspaces(index=-1){
+ const menu=$("workspaceSelect");menu.replaceChildren(new Option(workspaces.length?"Choose a workspace":"No saved workspaces",""));
+ workspaces.forEach((item,i)=>{if(typeof item?.name==="string")menu.add(new Option(item.name,String(i)))});
+ if(index>=0)menu.value=String(index);$("workspaceLoad").disabled=$("workspaceRemove").disabled=!menu.value;
+}
+$("workspaceSelect").onchange=()=>{$("workspaceLoad").disabled=$("workspaceRemove").disabled=!$("workspaceSelect").value};
+$("workspaceSaveForm").onsubmit=e=>{
+ e.preventDefault();const name=$("workspaceName").value.trim();if(!name)return;
+ const existing=workspaces.findIndex(item=>item?.name?.toLowerCase()===name.toLowerCase());
+ if(existing>=0){$("workspaceFeedback").textContent="That name already exists. Use a new name or remove the existing workspace.";return}
+ if(workspaces.length>=30){$("workspaceFeedback").textContent="You can save up to 30 workspaces on this device.";return}
+ const item={name,symbol,interval,style,frame:(benchmarkMode()||goldArchive())?benchmarkFrame:null,layout:comparison,compare:$("compareSymbol").value,compareInterval:$("compareInterval").value,ind:q("[data-ind]:checked").map(x=>x.dataset.ind)};
+ workspaces.push(item);save("ledger_workspaces_v1",workspaces);listWorkspaces(workspaces.length-1);
+ $("workspaceName").value="";$("workspaceFeedback").textContent=localImport()?"Workspace saved. Local CSV data stays in this tab.":"Saved “"+name+"” on this device.";
+};
+$("workspaceLoad").onclick=()=>{
+ const x=workspaces[Number($("workspaceSelect").value)];
+ if(!$("workspaceSelect").value||!x||!valid(x.symbol)||!intervals.includes(x.interval)||!styles.includes(x.style)||!layouts.includes(x.layout))return;
+ interval=x.interval;style=x.style;$("style").value=style;
+ q("[data-i]").forEach(b=>b.classList.toggle("active",Number(b.dataset.i)===interval));
+ if(Array.isArray(x.ind))q("[data-ind]").forEach(b=>b.checked=x.ind.includes(b.dataset.ind));
+ if(q("#compareSymbol option").some(o=>o.value===x.compare))$("compareSymbol").value=x.compare;
+ if(availableCompareIntervals.includes(x.compareInterval))$("compareInterval").value=x.compareInterval;
+ if(chart){makeSeries();indicatorData()}setLayout(x.layout);select(x.symbol,x.frame??null);
+};
+$("workspaceRemove").onclick=()=>{
+ const value=$("workspaceSelect").value;if(!value)return;
+ workspaces.splice(Number(value),1);save("ledger_workspaces_v1",workspaces);listWorkspaces();
+ $("workspaceFeedback").textContent="Saved workspace removed. Your drawings were kept.";
+};
+$("layoutOpen").onclick=()=>{listWorkspaces();$("workspaceFeedback").textContent="Saves markets, timeframes, chart type, layout and active indicators on this device.";showDialog("layoutDialog")};q("[data-layout]").forEach(b=>b.onclick=()=>setLayout(b.dataset.layout));$("compareClose").onclick=()=>setLayout("single");$("compareSymbol").onchange=$("compareInterval").onchange=()=>{storeLayout();renderComparison()};
 const firstLayout=layouts.includes(configuredLayout)?configuredLayout:layoutPrefs.layout;
 if(layouts.includes(firstLayout)&&firstLayout!=="single")setLayout(firstLayout,false);
 $("shareChart").onclick=()=>{
@@ -413,14 +520,14 @@ $("copyChart").onclick=async()=>{try{await navigator.clipboard.writeText($("shar
 async function jump(target,period=false){if(csvOnlyMarket()||!data.length||replayData||busy||historyBusy){notify("Open a native live chart before using date ranges");return}const k=key();let count=0;while(data[0]?.time>target&&hasHistory&&!historyEnded&&count++<8&&key()===k){const first=data[0].time;await loadOlder(false);if(data[0]?.time===first)break}if(key()!==k||!data.length)return;let i=data.findIndex(a=>a.time>=target);if(i<0)i=data.length-1;const end=period?data.length+4:Math.min(data.length+4,i+45);chart.timeScale().setVisibleLogicalRange({from:period?Math.max(0,i):Math.max(0,i-45),to:Math.max(i+1,end)});if(target<data[0].time)notify("Showing earliest loaded history · use Load older for more");else notify("Date range updated");}
 q("[data-period]").forEach(b=>b.onclick=()=>{if(data.length)jump(data.at(-1).time-Number(b.dataset.period),true)});$("goDate").onclick=()=>{$("dateInput").max=new Date().toISOString().slice(0,10);$("dateInput").value=new Date((data[0]?.time||Date.now()/1000)*1000).toISOString().slice(0,10);showDialog("dateDialog")};$("dateApply").onclick=()=>{const t=Date.parse($("dateInput").value)/1000;if(Number.isFinite(t)){$("dateDialog").close();jump(t)}};
 let playbackTimer=null;
-function stopPlayback(){if(playbackTimer)clearInterval(playbackTimer);playbackTimer=null;if($("replayPlay"))$("replayPlay").textContent="▶"}
-function play(){if(!replayData)return;if(playbackTimer){stopPlayback();return}$("replayPlay").textContent="Ⅱ";playbackTimer=setInterval(()=>{if(!replayData||replayIndex>=replayData.length){stopPlayback();return}replayIndex++;replayStep()},Number($("replaySpeed").value))}
+function stopPlayback(){if(playbackTimer)clearInterval(playbackTimer);playbackTimer=null;if($("replayPlay")){$("replayPlay").textContent="▶";$("replayPlay").setAttribute("aria-label","Play replay")}}
+function play(){if(!replayData)return;if(playbackTimer){stopPlayback();return}$("replayPlay").textContent="Ⅱ";$("replayPlay").setAttribute("aria-label","Pause replay");playbackTimer=setInterval(()=>{if(!replayData||replayIndex>=replayData.length){stopPlayback();return}replayIndex++;replayStep()},Number($("replaySpeed").value))}
 $("replayPlay").onclick=play;$("replaySpeed").onchange=()=>{if(playbackTimer){stopPlayback();play()}};
 let alerts=read("ledger_alerts_v1",[]);if(!Array.isArray(alerts))alerts=[];let lastAlertPrice={};
 function renderAlerts(){const box=$("alertList");box.replaceChildren();for(const a of alerts){const row=document.createElement("div");row.className="objectrow";const t=document.createElement("span");t.style.flex="1";t.textContent=a.symbol+" "+(a.condition==="above"?"↑":"↓")+" "+price(a.price)+(a.triggered?" · triggered":" · active");const b=document.createElement("button");b.textContent="×";b.onclick=()=>{alerts=alerts.filter(v=>v.id!==a.id);save("ledger_alerts_v1",alerts);renderAlerts()};row.append(t,b);box.append(row)}if(!alerts.length)box.textContent="No price alerts."}
 function checkAlerts(p){if(benchmarkMode()||usingImport())return;const prev=lastAlertPrice[symbol];lastAlertPrice[symbol]=p;if(prev===undefined||!Number.isFinite(p))return;let changed=false;for(const a of alerts){if(a.triggered||a.symbol!==symbol)continue;if(a.condition==="above"?prev<a.price&&p>=a.price:prev>a.price&&p<=a.price){a.triggered=true;changed=true;const n=document.createElement("div");n.textContent="Price alert · "+symbol+" crossed "+price(a.price);n.style.cssText="position:fixed;right:15px;bottom:40px;background:var(--panel);border:1px solid var(--accent);padding:14px;z-index:50;border-radius:6px";n.onclick=()=>n.remove();document.body.append(n);setTimeout(()=>n.remove(),12000)}}if(changed){save("ledger_alerts_v1",alerts);renderAlerts()}}
 function openAlert(){if(benchmarkMode()||usingImport()||csvOnlyMarket()||!data.length){notify("Price alerts require a native chart");return}$("alertSymbol").textContent=symbol+" / USD";$("alertPrice").value=data.at(-1).close;showDialog("alertDialog")}
-$("alertOpen").onclick=openAlert;$("newAlert").onclick=openAlert;$("alertSave").onclick=()=>{const p=Number($("alertPrice").value);if(!Number.isFinite(p)||p<=0)return;alerts.push({id:Date.now()+"-"+Math.random(),symbol,condition:$("alertCondition").value,price:p,triggered:false});lastAlertPrice[symbol]=data.at(-1)?.close;save("ledger_alerts_v1",alerts);renderAlerts();sideTab("alerts");$("alertDialog").close()};renderAlerts();applySettings();
+$("alertOpen").onclick=openAlert;$("newAlert").onclick=openAlert;$("alertSave").onclick=()=>{const p=Number($("alertPrice").value);if(!Number.isFinite(p)||p<=0)return;alerts.push({id:Date.now()+"-"+Math.random(),symbol,condition:$("alertCondition").value,price:p,triggered:false});lastAlertPrice[symbol]=data.at(-1)?.close;save("ledger_alerts_v1",alerts);renderAlerts();sideTab("alerts");togglePanel(true);$("alertDialog").close()};renderAlerts();applySettings();
 
 let lastBenchmarkCheck=0;
 async function loadBenchmark({refresh=false,quiet=false}={}){
@@ -478,7 +585,7 @@ async function loadGoldArchive(){
   finally{if(ticket===seq)busy=false}
 }
 $("benchmarkExport").onclick=()=>{if(goldArchive()&&benchmarkInfo){const u=URL.createObjectURL(new Blob([benchmarkInfo.csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=u;a.download="XAUUSD-1m-Sepaul-Research.csv";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);return}if(!benchmarkMode()||!benchmarkInfo)return;const p=benchmarkInfo,len=p.frame==="month"?7:p.frame==="year"?4:p.intraday?20:10;const text="period,value,unit,source\n"+p.points.map(([t,v])=>[new Date(t*1000).toISOString().slice(0,len),v,p.info.unit,p.source].join(",")).join("\n")+"\n";const u=URL.createObjectURL(new Blob([text],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=u;a.download=symbol+"-"+p.frame+"-ledger.csv";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
-q("[data-bf]").forEach(b=>b.onclick=()=>{if(!benchmarkMode()&&!goldArchive())return;const wasArchive=goldArchive();benchmarkFrame=b.dataset.bf;if(wasArchive!==goldArchive())select(symbol);else if(benchmarkMode())loadBenchmark()});
+q("[data-bf]").forEach(b=>b.onclick=()=>{if(!benchmarkMode()&&!goldArchive())return;barHover=null;pinnedBar=null;setReplayPicking(false);const wasArchive=goldArchive();benchmarkFrame=b.dataset.bf;if(wasArchive!==goldArchive())select(symbol);else if(benchmarkMode())loadBenchmark()});
 async function loadImported(){const ticket=++seq;controller?.abort();stopLive();stopPlayback();clearTimeout(historyTimer);busy=false;historyBusy=false;historyEnded=true;hasHistory=false;nextBefore=null;replayData=null;
 try{await getLibrary();if(ticket!==seq||!usingImport())return;startChart();if(seriesKind==="benchmark")makeSeries();applySettings();data=imported.bars.map(x=>({...x}));loadedKey="csv:"+key();nativeControls(true);$("pair").textContent=symbol+" · Imported";$("source").textContent=imported.name;$("tradeInfo").textContent="Historical data only";$("alertOpen").disabled=true;setLiveStatus("imported");updateChart(null);chart.timeScale().setVisibleLogicalRange({from:Math.max(0,data.length-100),to:data.length+5});message("");notify("Local CSV · not a live feed");renderObjects()}catch{if(ticket===seq)message("Could not start the Ledger chart engine.")}}
 $("importOpen").onclick=()=>{$("csvInterval").value=String(interval);$("csvError").textContent="";$("csvExit").hidden=!localImport();showDialog("csvDialog")};

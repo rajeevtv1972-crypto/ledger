@@ -1,0 +1,23 @@
+/* Chart-first workspace. The sidebar is a panel on desktop and a dismissible drawer on phones. */
+.top{border-bottom:1px solid var(--line)}
+.top :is(#replay,#focusMode)[aria-pressed=true],.top #focusMode[aria-expanded=true]{color:var(--accent);background:var(--panel)}
+.sideTabs{display:flex;gap:3px;position:sticky;top:0;background:var(--bg);z-index:1}
+.sideTabs button{flex:1;padding-inline:5px;font-size:12px}
+.sideTabs button.active{color:var(--accent);border-color:var(--accent)}
+.sideTabs #closePanel{flex:0;padding-inline:8px}
+.replayBar{display:flex;align-items:center;gap:6px;padding:5px 8px;border-top:1px solid var(--line);flex:none;overflow-x:auto;scrollbar-width:thin}
+.replayBar strong,.replayBar span{white-space:nowrap}
+.replayBar span{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.replayBar[hidden],.replayBar [hidden]{display:none}
+.replayBar button,.replayBar select{min-height:31px;padding:4px 7px}
+.replay-pick #chartarea,.replay-pick #chartarea *{cursor:crosshair!important}
+#dataValues{display:grid;grid-template-columns:1fr auto;gap:0;margin:10px 0;font-variant-numeric:tabular-nums}
+#dataValues dt,#dataValues dd{border-bottom:1px solid var(--line);margin:0;padding:6px 3px}
+#dataValues dd{text-align:right;color:var(--text)}
+#dataValues dt{color:var(--muted)}
+@media(max-width:730px){
+ .workspace>.side{display:none}
+ .sidebar-open .workspace>.side{display:flex;position:fixed;inset:auto 0 0;max-height:min(64dvh,540px);z-index:20;overflow:auto;border:1px solid var(--line);border-radius:12px 12px 0 0;box-shadow:0 -10px 35px #0008;padding:8px 10px max(12px,env(safe-area-inset-bottom))}
+ .sideTabs button{min-height:40px}
+ .replayBar button,.replayBar select{min-height:38px}
+}
