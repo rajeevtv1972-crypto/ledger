@@ -71,8 +71,9 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:c
 
 <section class="panel" id="commodityPanel">
 <div class="panel-head"><h2>Commodity benchmark charts</h2><span>Published prices · not live quotes</span></div>
-<div class="market-toolbar commodity-links"><a class="market-button" href="/chart.html?symbol=XAUUSD&amp;period=15m">Gold</a><a class="market-button" href="/chart.html?symbol=XAGUSD&amp;period=month">Silver</a><a class="market-button" href="/chart.html?symbol=USOIL&amp;period=day">WTI oil</a><a class="market-button" href="/chart.html?symbol=UKOIL&amp;period=day">Brent oil</a><a class="market-button" href="/chart.html?symbol=NATGAS&amp;period=day">Natural gas</a></div>
+<div class="market-toolbar commodity-links"><a class="market-button" href="/chart.html?symbol=XAUUSD&amp;period=15m&amp;style=candles">Gold candles</a><a class="market-button" href="/chart.html?symbol=XAGUSD&amp;period=month">Silver</a><a class="market-button" href="/chart.html?symbol=USOIL&amp;period=day">WTI oil</a><a class="market-button" href="/chart.html?symbol=UKOIL&amp;period=day">Brent oil</a><a class="market-button" href="/chart.html?symbol=NATGAS&amp;period=day">Natural gas</a><a class="market-button" href="/chart.html?symbol=PLATINUM&amp;period=month">Platinum</a><a class="market-button" href="/chart.html?symbol=COPPER&amp;period=month">Copper</a><a class="market-button" href="/chart.html?symbol=MAIZE&amp;period=month">Maize</a><a class="market-button" href="/chart.html?symbol=WHEATSRW&amp;period=month">Wheat</a><a class="market-button" href="/chart.html?symbol=SOYBEANSPOT&amp;period=month">Soybeans</a><a class="market-button" href="/chart.html?symbol=COCOA&amp;period=month">Cocoa</a><a class="market-button" href="/chart.html?symbol=COFFEE&amp;period=month">Coffee</a><a class="market-button" href="/chart.html?symbol=ALUMINUM&amp;period=month">Aluminum</a><a class="market-button" href="/chart.html?symbol=NICKEL&amp;period=month">Nickel</a><a class="market-button" href="/chart.html?symbol=ZINC&amp;period=month">Zinc</a></div>
 </section>
+<section class="panel" id="forexPanel"><div class="panel-head"><h2>Forex history</h2><span>Daily ECB reference rates · not live quotes</span></div><div class="market-toolbar commodity-links"><a class="market-button" href="/chart.html?symbol=GBPJPY&amp;period=day">GBP/JPY</a><a class="market-button" href="/chart.html?symbol=EURUSD&amp;period=day">EUR/USD</a><a class="market-button" href="/chart.html?symbol=USDINR&amp;period=day">USD/INR</a><a class="market-button" href="/chart.html?symbol=GBPUSD&amp;period=day">GBP/USD</a><a class="market-button" href="/chart.html?symbol=USDJPY&amp;period=day">USD/JPY</a><a class="market-button" href="/chart.html?symbol=AUDUSD&amp;period=day">AUD/USD</a><a class="market-button" href="/chart.html?symbol=USDCAD&amp;period=day">USD/CAD</a><a class="market-button" href="/chart.html?symbol=USDCHF&amp;period=day">USD/CHF</a><a class="market-button" href="/chart.html?symbol=NZDUSD&amp;period=day">NZD/USD</a><a class="market-button" href="/chart.html?symbol=EURJPY&amp;period=day">EUR/JPY</a><a class="market-button" href="/chart.html?symbol=EURGBP&amp;period=day">EUR/GBP</a></div></section>
 </main>
 <footer>© 2026 Ledger. All rights reserved.<br><br><a href="/">Home</a><a href="/portfolio.html">Portfolio</a><a href="/about.html">About Us</a><a href="/contact.html">Contact Us</a><a href="/privacy-policy.html">Privacy Policy</a></footer>
 <script>
@@ -105,10 +106,11 @@ function priceText(value){
   const decimals=n>=1000?2:n>=1?4:n>=0.01?6:8;
   return "$"+number(n,decimals);
 }
+const compactDollars=new Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:2});
 function compactUSD(value){
   const n=Number(value);
   if(!Number.isFinite(n)||n<0)return "—";
-  return "$"+new Intl.NumberFormat("en-US",{notation:"compact",maximumFractionDigits:2}).format(n);
+  return "$"+compactDollars.format(n);
 }
 function percentText(value){
   const n=Number(value);

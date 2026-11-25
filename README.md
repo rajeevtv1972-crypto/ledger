@@ -22,11 +22,11 @@ Sources: [U.S. EIA reuse policy](https://www.eia.gov/about/copyrights_reuse.php)
 
 The chart toolbar’s star adds the current market to Favorites, including commodities. Search (Ctrl/⌘+K) also lists recently opened markets and supports arrow keys and Enter. The browser remembers the split layout; Share generates a link to chart settings and markets only, excluding local or imported data.
 
-Ledger checks the latest World Bank workbook on load and through Refresh. A chart left open checks for a new publication periodically; if the publisher is unavailable, Ledger labels the saved fallback. These are published benchmarks, not intraday prices; Gold intraday shows indicative spot samples, not tradable quotes or exchange candles.
+Ledger checks the latest World Bank workbook on load and through Refresh. A chart left open checks for a new publication periodically; if the publisher is unavailable, Ledger labels the saved fallback. These are published benchmarks, not intraday prices; Gold’s separate Spot quotes view shows indicative samples, not tradable quotes or exchange candles.
 
 Tap or click a box to select it, then use Edit text, Move / resize, or Delete above the chart. Drag any corner to resize in move mode. Undo restores a deleted box. Hold Shift while placing a line endpoint to snap it horizontal or vertical.
 
-Gold (XAU/USD) opens in 15m mode by default. Ledger uses the [XAUS public Gold spot sampler](https://xaus.com/api/) for 5m, 15m, 30m, 1h and 4h views, holding the last observation per UTC period for up to 48 hours of available history. It checks at five-minute intervals, labels stale samples, and does not infer candles, gaps, or trading volume. Longer 1M and 1Y views keep the World Bank benchmark; broker-supplied XAU/USD candles can be imported via CSV. No embed is used.
+Gold (XAU/USD) opens in 15m mode by default. Ledger uses the [XAUS public Gold spot sampler](https://xaus.com/api/) for the separate Spot quotes line, with up to 48 hours of available history. It checks at five-minute intervals, labels stale samples, and does not infer candles, gaps, or trading volume. Longer 1M and 1Y views keep the World Bank benchmark; broker-supplied XAU/USD candles can be imported via CSV. No embed is used.
 
 ### Gold 1-minute historical candles
 
@@ -38,7 +38,7 @@ selected the most recent rows from the source archive's `xauusd_m1.csv`,
 omitted spread and real-volume columns, and gzip-compressed the CSV. OHLC
 and tick counts are unchanged. This is a broker spot Gold CFD historical
 archive, not a live feed, and volumes are broker tick counts rather than
-exchange totals. The existing indicative Gold 5m–4h views remain separate.
+exchange totals. The indicative Spot quotes view remains separate.
 
 ### Chart workspace
 
@@ -75,3 +75,25 @@ To regenerate indexes, download the exact pinned ZIP whose SHA-256 is recorded
 in `scripts/build-gold-index.py`. Run `python scripts/build-gold-index.py ZIP`
 with a C compiler and zlib development headers. Verify all archive months
 with `LEDGER_GOLD_ZIP=ZIP node --test tests/gold-archive.test.js`.
+
+### Market history coverage
+
+- Gold opens as a 15-minute candle chart. The 1m, 5m, 15m, 30m, 1h and
+  4h intervals are historical OHLC from the Sepaul archive or exact
+  aggregates of its observed minute candles; the latest view initially
+  loads the saved 20,000 minute bars. The 1D/1W candle views cover the full
+  archive, with UTC day/Monday-week buckets. **Spot quotes** is a separate
+  recent indicative XAUS line. World Bank 1M/1Y benchmarks are still
+  reference observations, not candles.
+- Forex offers 11 pairs based on [ECB reference rates](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html),
+  from the first available publication for each pair, generally 1999.
+  EUR-base daily rates reproduce published values. Other pairs are ratios
+  of same-date EUR-base observations, calculated by Ledger. Weekly,
+  monthly and yearly averages are also Ledger calculations, not official
+  trade prices. The snapshot is backed by the ECB’s 90-day update endpoint.
+- **Date** opens an on-demand historical window on supported paginated
+  crypto feeds. **Latest** returns from that window to the newest bars
+  and resumes normal updates. The feed can still return no candles near
+  the requested date. The page limits how many bars it keeps loaded at once.
+- The Markets page links directly to all available benchmark charts.
+  Stocks, indices and unlicensed futures still need an OHLCV CSV.

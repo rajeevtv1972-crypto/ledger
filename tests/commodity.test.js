@@ -8,11 +8,11 @@ test("weekly and annual samples are averages of published observations", () => {
   const points=[[at("2020-04-20"),-37.63],[at("2020-04-21"),11.57],[at("2020-04-27"),12.17]];
   assert.deepEqual(aggregateBenchmarks(points,"week"), [[at("2020-04-20"),(-37.63+11.57)/2],[at("2020-04-27"),12.17]]);
   assert.deepEqual(aggregateBenchmarks(points,"year"), [[at("2020-01-01"),(-37.63+11.57+12.17)/3]]);
-  assert.deepEqual(periods(instruments.XAUUSD),["15m","5m","30m","1h","4h","month","year"]);
+  assert.deepEqual(periods(instruments.XAUUSD),["spot","month","year"]);
 });
 test("monthly snapshots preserve each available month and energy fallback includes negative WTI", () => {
   const d=JSON.parse(readFileSync(new URL("../assets/data/pink-sheet-monthly.json",import.meta.url)));
-  for(const key of Object.keys(instruments))assert.equal(d.prices[key].length,d.months.length);
+  for(const key of Object.keys(instruments).filter(k=>!instruments[k].forex))assert.equal(d.prices[key].length,d.months.length);
   assert.equal(d.months[0],"1960-01");
   assert.ok(d.months.length>790);
   assert.equal(d.prices.XAUUSD[0],35);

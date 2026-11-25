@@ -1,4 +1,5 @@
-import {goldFrames,goldSamples} from "./gold-samples.js?v=2";
+import {ecbPairs,loadForex} from "./forex-rates.js";
+import {goldSamples} from "./gold-samples.js?v=2";
 export const pinkUrl="https://www.worldbank.org/en/research/commodity-markets";
 export const instruments=Object.freeze({
   XAUUSD:{name:"Gold benchmark",unit:"USD/troy oz",intraday:true},
@@ -15,10 +16,11 @@ export const instruments=Object.freeze({
   COFFEE:{name:"Arabica coffee",unit:"USD/kg"},
   ALUMINUM:{name:"Aluminum benchmark",unit:"USD/metric ton"},
   NICKEL:{name:"Nickel benchmark",unit:"USD/metric ton"},
-  ZINC:{name:"Zinc benchmark",unit:"USD/metric ton"}
+  ZINC:{name:"Zinc benchmark",unit:"USD/metric ton"},
+  ...Object.fromEntries(ecbPairs.map(s=>[s,{name:s.slice(0,3)+"/"+s.slice(3)+" · Forex reference",unit:s.slice(3)+" per "+s.slice(0,3),daily:true,forex:true}]))
 });
-export const frames = Object.freeze({"5m":"5 min","15m":"15 min","30m":"30 min","1h":"1 hour","4h":"4 hour",day:"Daily",week:"Weekly",month:"Monthly",year:"Annual"});
-export function periods(instrument){return instrument.intraday?["15m","5m","30m","1h","4h","month","year"]:instrument.daily?["day","week","month","year"]:["month","year"]}
+export const frames = Object.freeze({spot:"Indicative spot","5m":"5 min","15m":"15 min","30m":"30 min","1h":"1 hour","4h":"4 hour",day:"Daily",week:"Weekly",month:"Monthly",year:"Annual"});
+export function periods(instrument){return instrument.intraday?["spot","month","year"]:instrument.daily?["day","week","month","year"]:["month","year"]}
 export function aggregateBenchmarks(points,frame){
   if(frame==="day"||frame==="month") return points;
   const groups = new Map();
@@ -38,8 +40,9 @@ let pinkChecked=0;
 export async function loadBenchmarkSeries(symbol,frame,signal,{refresh=false}={}){
   if(!Object.hasOwn(instruments,symbol)||!periods(instruments[symbol]).includes(frame))throw Error("This period is unavailable");
   const info=instruments[symbol], daily=frame==="day"||frame==="week";
-  if(info.intraday&&Object.hasOwn(goldFrames,frame)){
-    const p=await goldSamples(frame,signal);
+  if(info.forex)return loadForex(symbol,frame,info,signal,refresh);
+  if(info.intraday&&frame==="spot"){
+    const p=await goldSamples("5m",signal);
     return {...p,frame,intraday:true,source:"XAUS spot samples",url:"https://xaus.com/api/",info:{...info,name:"Gold spot · XAU/USD"}};
   }
   let checkedAt=null, points, source="World Bank Pink Sheet", url=pinkUrl, snapshot=false;
