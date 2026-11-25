@@ -29,7 +29,7 @@ with sync_playwright() as w:
     p.on("request",lambda r:requests.append(r.url))
     for attempt in range(20 if prod else 1):
         p.goto(base+"/chart.html?symbol=XAUUSD&period=1m&check="+str(int(time.time())),wait_until="domcontentloaded",timeout=15000)
-        if p.locator('script[src*="chart-terminal.js?v=29"]').count():break
+        if p.locator('script[src*="chart-terminal.js?v=30"]').count():break
         time.sleep(3)
     else:raise RuntimeError("Expected Ledger release did not appear")
     expect(p.locator("#historyInfo")).to_contain_text("20,000 bars")

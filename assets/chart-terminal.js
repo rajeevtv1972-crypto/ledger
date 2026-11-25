@@ -589,7 +589,14 @@ function grabAnchor(e){
 canvas.addEventListener("pointerdown",e=>{if(tool==="cursor"||hidden)return;if(tool==="edit"){grabAnchor(e);return}if(tool==="avwap"&&!data.some(bar=>bar.volume>0)){$("hint").textContent="Anchored VWAP requires volume";return}const p=straight(thirdPoint?null:pending,point(e),e.shiftKey,tool);if(!p)return;let d={type:tool,a:pending||p,color:$("color").value};if(isPosition(d)){const pos=newPosition(d);if(!pos){notify("Choose a positive entry price on the chart");return}changeDraw(()=>drawings.push(pos));setTool(keepDrawing?d.type:"cursor");if(!keepDrawing)chooseDrawing(drawings.length-1);notify(positionTitle(d)+" placed · Drag to adjust or open Position settings");return}if(tool==="text"){const i=boxAt(e);setTool("cursor");if(i>=0)openBox(i);else openDrawingText(-1,p);return}if(["horizontal","vertical","hRay","avwap"].includes(tool)){changeDraw(()=>drawings.push(d));setTool(keepDrawing?d.type:"cursor")}else if(!pending){pending=p;$("hint").textContent=tool+" · second point"}else if(["channel","fibExt"].includes(tool)&&!thirdPoint){thirdPoint=p;$("hint").textContent=tool==="channel"?"Select channel width":"Select projection start"}else{d.b=thirdPoint||p;if(thirdPoint)d.c=p;changeDraw(()=>drawings.push(d));setTool(keepDrawing?d.type:"cursor");if(d.type==="rectangle"&&!keepDrawing){chooseDrawing(drawings.length-1);notify("Box selected · drag a corner or tap it, then tap its new location")}}});
 $("search").onsubmit=e=>{e.preventDefault();select($("symbol").value)};
 $("addwatch").onclick=()=>{if(!Object.hasOwn(commodities,symbol)&&!Object.hasOwn(otherMarkets,symbol)&&!watch.includes(symbol)){watch.push(symbol);save("ledger_chart_watch_v1",watch);renderWatch()}};
-q("[data-i]").forEach(b=>b.onclick=()=>{barHover=null;pinnedBar=null;setReplayPicking(false);historyView=false;stopLive();stopPlayback();interval=Number(b.dataset.i);replayData=null;q("[data-i]").forEach(x=>x.classList.toggle("active",Number(x.dataset.i)===interval));preferences();setTool("cursor");load(true)});
+q("[data-i]").forEach(b=>b.onclick=()=>{
+ const next=Number(b.dataset.i);
+ if(goldFeedMode()){
+  if(next===interval)return;
+  // A user-initiated timeframe switch must supersede the current Gold request.
+  seq++;controller?.abort();busy=false;
+ }
+ barHover=null;pinnedBar=null;setReplayPicking(false);historyView=false;stopLive();stopPlayback();interval=next;replayData=null;q("[data-i]").forEach(x=>x.classList.toggle("active",Number(x.dataset.i)===interval));preferences();setTool("cursor");load(true)});
 q("[data-tool]").forEach(b=>b.onclick=()=>{if(replayPicking)setReplayPicking(false);if(hidden){hidden=false;$("hide").classList.remove("active")}setTool(b.dataset.tool)});
 $("style").value=style;$("style").onchange=()=>{style=$("style").value;makeSeries();preferences()};
 q("[data-ind]").forEach(b=>{if(Array.isArray(prefs.ind))b.checked=prefs.ind.includes(b.dataset.ind);b.onchange=()=>{preferences();try{indicatorData()}catch(e){notify("Indicator error: "+e.message)}}});
@@ -641,7 +648,7 @@ function replayStep(){
  $("step").disabled=ended;$("replayPlay").disabled=ended;if(ended)stopPlayback();
 }
 $("step").onclick=()=>{if(replayData&&replayIndex<replayData.length){replayIndex++;replayStep()}};
-$("live").onclick=()=>{stopPlayback();if(replayData){data=replayData;replayData=null;barHover=null;updateChart(null);chart.timeScale().setVisibleLogicalRange({from:Math.max(0,data.length-90),to:data.length+5});nativeControls(true);if(historyView){$("alertOpen").disabled=true;setLiveStatus("dateHistory");notify("Historical date window")}else load(true)}};
+$("live").onclick=()=>{stopPlayback();if(replayData){data=replayData;replayData=null;barHover=null;updateChart(null);chart.timeScale().setVisibleLogicalRange({from:Math.max(0,data.length-90),to:data.length+5});nativeControls(true);if(historyView){$("alertOpen").disabled=true;setLiveStatus("dateHistory");notify("Historical date window")}else{if(goldFeedMode())goldFeedChecked=0;load(true)}}};
 $("csvExport").onclick=()=>{
  if(!data.length||benchmarkMode()||goldArchive()||goldLiveMode()||goldFeedMode())return;
  const rows=data.map(a=>[new Date(a.time*1000).toISOString(),a.open,a.high,a.low,a.close,a.volume].join(","));
@@ -975,7 +982,7 @@ async function loadGoldFeed(manual=false){
   const full=!keep||(now-goldFeedBackfill>60000&&now/1000-data.at(-1).time>frame*60*10&&goldFeedQuote?.state!=="closed");
   if(full)goldFeedBackfill=now;
   const resp=await m.readGoldFeed(frame,{signal,full});
-  if(ticket!==seq||!goldFeedMode()||replayData)return;
+  if(ticket!==seq||!goldFeedMode()||frame!==interval||replayData)return;
   const valid=resp.bars?.length&&(!keep||resp.bars.at(-1).time>=data.at(-1).time);
   if(!valid)throw Error("Candles were unavailable or older than the current window");
   const bars=m.mergeFeedBars(keep?data:[],resp.bars);
