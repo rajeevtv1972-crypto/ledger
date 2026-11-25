@@ -21,11 +21,11 @@ with sync_playwright() as w:
   rows=bars(end,step=i*60,mid=200 if s=="ETH" else 100)
   route.fulfill(json={"candles":rows,"provider":"bitstamp","source":"Fixture exchange","historyAvailable":True,"nextBefore":rows[0]["time"]})
  p.route("**/api/candles?*",fixture)
- p.route("https://s3.tradingview.com/**",lambda route:route.abort())
+ external=[]
+ p.on("request",lambda r:external.append(r.url) if "tradingview.com" in r.url else None)
  def ws(sock): sock.on_message(lambda msg:sock.send('{"event":"trade","channel":"live_trades_btcusd","data":{"price":"175","amount":"1.2","timestamp":"'+str(int(time.time()))+'","id":"test"}}'))
  p.route_web_socket("wss://ws.bitstamp.net/",ws)
  p.goto(base); p.get_by_role("link",name="Open Ledger Chart").click()
- expect(p.locator("#engine")).to_have_value("native")
  expect(p.locator("#source")).to_contain_text("Fixture exchange")
  expect(p.locator("#streamState")).to_contain_text("LIVE")
  expect(p.locator("#quote")).to_have_text("$175.00")
@@ -65,6 +65,20 @@ with sync_playwright() as w:
  box=drawings()[-1]
  p.mouse.move(area["x"]+460,area["y"]+170);p.mouse.down();p.mouse.move(area["x"]+480,area["y"]+178,steps=4);p.mouse.up()
  assert drawings()[-1]["a"]!=box["a"]
+ p.locator("[data-tool=cursor]").click()
+ p.mouse.click(area["x"]+610,area["y"]+300)
+ expect(p.locator("#boxActions")).to_be_hidden()
+ p.mouse.click(area["x"]+480,area["y"]+178)
+ expect(p.locator("#boxActions")).to_be_visible()
+ p.locator("#boxEditText").click()
+ expect(p.locator("#boxText")).to_have_value("4H FVG")
+ p.locator("#boxText").fill("Updated FVG")
+ p.locator("#boxSave").click()
+ p.locator("#boxDelete").click()
+ assert drawings()[-1]["type"]=="trend"
+ p.locator("#undo").click()
+ assert drawings()[-1]["text"]=="Updated FVG"
+
 
  p.reload();expect(p.locator("#source")).to_contain_text("Fixture exchange");assert drawings()[0]["a"]==first
  monthly=json.loads((Path(__file__).parent/"../assets/data/pink-sheet-monthly.json").read_text())
@@ -87,7 +101,7 @@ with sync_playwright() as w:
  p.locator("#refresh").click()
  expect(p.locator("#historyInfo")).to_contain_text("803 observations")
  expect(p.locator("#tradeInfo")).to_contain_text("2026-11")
- expect(p.locator("#intradayChart")).to_be_visible()
+ assert p.locator("#intradayChart").count()==0
 
  p.locator('[data-bf="year"]').click()
  expect(p.locator("#source")).to_have_text("Annual · USD/troy oz")
@@ -119,12 +133,27 @@ with sync_playwright() as w:
  p.locator("#layoutOpen").click();p.locator('[data-layout="horizontal"]').click()
  p.locator("#compareSymbol").select_option("XAGUSD")
  expect(p.locator("#compareTitle")).to_contain_text("Silver benchmark · Monthly")
- p.goto(base+"/chart.html?symbol=GOLD")
- expect(p.locator("body")).to_have_class("advanced-mode")
+ p.goto(base+"/chart.html?symbol=GOLD&engine=advanced")
+ expect(p.locator("#message")).to_contain_text("does not have a built-in feed for GOLD")
+ assert "engine=" not in p.url
+ p.locator("#message").get_by_role("button",name="Import CSV").click()
+ expect(p.locator("#csvDialog")).to_be_visible()
+ p.locator("[data-close=csvDialog]").click()
+ p.goto(base+"/chart.html?symbol=GBPJPY")
+ expect(p.locator("#source")).to_have_text("No built-in feed")
+ p.locator("#layoutOpen").click();p.locator('[data-layout="horizontal"]').click()
+ p.locator("#compareSymbol").select_option("GOLD")
+ expect(p.locator("#compareTitle")).to_have_text("No built-in comparison feed")
+ p.goto(base+"/markets.html")
+ expect(p.get_by_role("heading",name="Commodity benchmark charts")).to_be_visible()
+ assert p.locator("iframe").count()==0
+ p.goto(base+"/portfolio.html")
+ expect(p.get_by_role("link",name="Open Charts",exact=False)).to_be_visible()
+ assert p.locator("iframe").count()==0
  p.goto(base+"/chart.html?symbol=FAIL");expect(p.locator("#message")).to_contain_text("No Ledger candles")
  assert "advanced-mode" not in (p.locator("body").get_attribute("class") or "")
- p.goto(base+"/chart.html?symbol=BTC&interval=15&style=area&layout=single")
- expect(p.locator("#engine")).to_have_value("native")
+ p.goto(base+"/chart.html?symbol=BTC&interval=15&style=area&layout=single&engine=advanced")
+ assert "engine=" not in p.url
  expect(p.locator("#style")).to_have_value("area")
  expect(p.locator("[data-i=\"15\"]")).to_have_class("active")
  p.locator("#starSymbol").click()
@@ -150,9 +179,30 @@ with sync_playwright() as w:
  expect(p.locator("#starSymbol")).to_have_attribute("aria-pressed","true")
  p.locator("#goLatest").click()
  expect(p.locator("#historyInfo")).to_contain_text("bars")
+ assert not external,external
+ assert p.locator("iframe").count()==0
  assert not errs,errs
  p.set_viewport_size({"width":390,"height":844});p.goto(base+"/chart.html")
  expect(p.locator("#chart canvas").first).to_be_visible()
  assert p.evaluate("document.documentElement.scrollWidth <= innerWidth")
  p.close()
+ touch=b.new_page(viewport={"width":390,"height":844},has_touch=True,is_mobile=True)
+ touch.route("**/api/candles?*",fixture)
+ touch.goto(base+"/chart.html?symbol=BTC")
+ expect(touch.locator("#source")).to_contain_text("Fixture exchange")
+ touch.locator("[data-tool=rectangle]").tap()
+ r=touch.locator("#draw").bounding_box()
+ touch.touchscreen.tap(r["x"]+65,r["y"]+140);touch.touchscreen.tap(r["x"]+235,r["y"]+205)
+ expect(touch.locator("#boxActions")).to_be_visible()
+ touch.locator("#boxDismiss").tap()
+ expect(touch.locator("#boxActions")).to_be_hidden()
+ touch.touchscreen.tap(r["x"]+150,r["y"]+170)
+ expect(touch.locator("#boxActions")).to_be_visible()
+ touch.locator("#boxEditText").tap()
+ touch.locator("#boxText").fill("Mobile zone")
+ touch.locator("#boxSave").tap()
+ touch.locator("#boxDelete").tap()
+ expect(touch.locator("#boxActions")).to_be_hidden()
+ assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).BTC.length")==0
+ touch.close()
  print("Browser passed: homepage launch, WebSocket, REST history, RSI, replay, native comparison, channel and anchor editing, commodity benchmarks, full date coverage, fallback, CSV, outage state, mobile layout.")

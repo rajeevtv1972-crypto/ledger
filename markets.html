@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#06101d">
 <link rel="icon" type="image/svg+xml" href="/assets/ledger-logo.svg">
-<meta name="description" content="Ledger crypto market prices, 1-hour and 24-hour changes, market capitalization and forex cross-rates, refreshed from public market data.">
-<title>Ledger — Crypto & Forex Markets</title>
+<meta name="description" content="Ledger crypto market prices, 1-hour and 24-hour changes, market capitalization and links to commodity history, refreshed from public market data.">
+<title>Ledger — Crypto & Commodity Markets</title>
 <style>
 :root{--bg:#06101d;--panel:#0b1b2d;--line:#1d3850;--text:#f6fafc;--muted:#93a7ba;--accent:#31d7a3}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 0%,rgba(49,215,163,.1),transparent 30%),#06101d;color:var(--text);font-family:Inter,system-ui,sans-serif}
 header{padding:44px 5vw 34px;border-bottom:1px solid rgba(255,255,255,.07);background:#081625}.top{max-width:1280px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:20px}.brand{display:flex;align-items:center;gap:11px;color:var(--text);text-decoration:none;font-size:22px;font-weight:900}.logo{width:40px;height:40px;border-radius:13px;background:var(--accent);color:#06111b;display:grid;place-items:center;font-weight:950}.nav{display:flex;gap:18px;font-size:13px}.nav a{color:#b8c8d8;text-decoration:none}.nav a:hover{color:var(--accent)}
 main{max-width:1280px;margin:0 auto;padding:42px 5vw 75px}.eyebrow{color:#78e2c3;font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-weight:900}.hero h1{font-size:clamp(38px,5vw,64px);line-height:1;letter-spacing:-.055em;margin:10px 0}.hero p{max-width:760px;color:var(--muted);line-height:1.65;margin:0}.note{margin-top:17px;padding:13px 15px;border:1px solid #23445c;border-radius:13px;background:#091827;color:#8ea4b9;font-size:12px;line-height:1.5}.note a{color:#a8ead7}
-.panel{margin-top:25px;border:1px solid var(--line);border-radius:22px;background:#091827;overflow:hidden}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:19px 20px;border-bottom:1px solid rgba(255,255,255,.07)}.panel-head h2{margin:0;font-size:19px}.panel-head span{font-size:11px;color:#7f96aa}.widget{min-height:510px;background:#07121f}
+.panel{margin-top:25px;border:1px solid var(--line);border-radius:22px;background:#091827;overflow:hidden}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:19px 20px;border-bottom:1px solid rgba(255,255,255,.07)}.panel-head h2{margin:0;font-size:19px}.panel-head span{font-size:11px;color:#7f96aa}
 .market-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06)}
 .market-search,.market-sort{color:var(--text);background:#0a1b2c;border:1px solid #244159;border-radius:11px;padding:11px 13px;outline:none}
 .market-search{flex:1;min-width:190px}.market-sort{min-width:170px}.market-search:focus,.market-sort:focus{border-color:var(--accent)}
@@ -20,10 +20,10 @@ main{max-width:1280px;margin:0 auto;padding:42px 5vw 75px}.eyebrow{color:#78e2c3
 .market-table-wrap{overflow:auto}.market-table{border-collapse:collapse;width:100%;min-width:780px}.market-table th,.market-table td{padding:15px 18px;border-bottom:1px solid rgba(255,255,255,.055);text-align:right;white-space:nowrap;font-size:13px}.market-table th{color:#758da3;text-transform:uppercase;letter-spacing:.08em;font-size:10px;background:#081725}.market-table th:first-child,.market-table td:first-child{text-align:left}.market-table tbody tr:hover{background:rgba(255,255,255,.025)}
 .coin-cell{display:flex;align-items:center;gap:11px;min-width:160px}.coin-avatar{width:36px;height:36px;border:1px solid #25435b;border-radius:12px;background:#10263a;color:#b5f3df;display:grid;place-items:center;font-size:11px;font-weight:900}.coin-name{font-weight:850;color:#edf5fa}.coin-pair{font-size:10px;color:#74899e;margin-top:3px}.price-cell{font-variant-numeric:tabular-nums;font-weight:800}.up{color:#31d7a3!important}.down{color:#ff8392!important}.change-pill{display:inline-block;min-width:78px;text-align:center;padding:6px 8px;border-radius:8px;font-size:11px;font-weight:850;background:rgba(49,215,163,.09)}.change-pill.down{background:rgba(255,131,146,.09)}
 .market-status{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:13px 20px;color:#7f96aa;font-size:11px}.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#31d7a3;box-shadow:0 0 10px rgba(49,215,163,.55);margin-right:7px}.market-empty{padding:40px 18px;text-align:center;color:#8498ac;font-size:13px}.change-pill.neutral{background:rgba(143,163,184,.10);color:#9aafc2}.market-table th,.market-table td{min-width:94px}.market-table th:first-child,.market-table td:first-child{min-width:185px}
-#forexWidget{min-height:520px}
+.commodity-links a{text-decoration:none;display:inline-block}
 @media(max-width:700px){.market-toolbar{padding:13px}.market-search,.market-sort,.market-button{width:100%}.market-table th,.market-table td{padding:13px 14px}.market-status{padding:13px}}
 footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:center;color:#71859a;font-size:12px;background:#02070f}footer a{color:#b9eede;text-decoration:none;margin:0 8px}
-@media(max-width:700px){header{padding:28px 18px}.top{align-items:flex-start}.nav{gap:10px;flex-wrap:wrap;justify-content:flex-end}main{padding:30px 18px 55px}.widget{min-height:430px}.panel-head{align-items:flex-start;flex-direction:column}}
+@media(max-width:700px){header{padding:28px 18px}.top{align-items:flex-start}.nav{gap:10px;flex-wrap:wrap;justify-content:flex-end}main{padding:30px 18px 55px}.panel-head{align-items:flex-start;flex-direction:column}}
 </style>
 
 </head>
@@ -37,9 +37,9 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:c
 <main>
 <section class="hero">
 <div class="eyebrow">Live market centre</div>
-<h1>Crypto & Forex markets, updated.</h1>
-<p>Track crypto prices, hourly and daily movements, market capitalization and trading volume. Crypto data is supplied by CoinLore and the page requests a fresh market snapshot every 30 seconds. Forex cross-rates remain below.</p>
-<div class="note">Crypto prices use CoinLore's free public market-data API through Ledger's Cloudflare endpoint. Values are shown in USD and periodically refreshed; they are aggregated market data, not exchange tick-by-tick quotes. Forex cross-rates below are provided by TradingView.</div>
+<h1>Crypto markets and commodity history.</h1>
+<p>Track crypto prices, hourly and daily movements, market capitalization and trading volume. Crypto data is supplied by CoinLore and the page requests a fresh market snapshot every 30 seconds.</p>
+<div class="note">Crypto prices use CoinLore's free public market-data API through Ledger's Cloudflare endpoint. Values are shown in USD and periodically refreshed; they are aggregated market data, not exchange tick-by-tick quotes.</div>
 </section>
 
 <section class="panel" id="cryptoMarket">
@@ -69,16 +69,9 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:30px 20px;text-align:c
 </div>
 </section>
 
-<section class="panel" id="forexPanel">
-<div class="panel-head"><h2>Forex market — currency pairs</h2><span>Live cross rates • TradingView</span></div>
-<div class="widget" id="forexWidget">
-  <div class="tradingview-widget-container" style="width:100%;height:100%">
-    <div class="tradingview-widget-container__widget"></div>
-    <div class="tradingview-widget-copyright" style="padding:10px 14px;text-align:right;font-size:10px;color:#70859a">
-      <a href="https://www.tradingview.com/markets/currencies/cross-rates-overview-prices/" rel="noopener nofollow" target="_blank" style="color:#8aa1b7;text-decoration:none">Forex cross rates</a> by TradingView
-    </div>
-  </div>
-</div>
+<section class="panel" id="commodityPanel">
+<div class="panel-head"><h2>Commodity benchmark charts</h2><span>Published prices · not live quotes</span></div>
+<div class="market-toolbar commodity-links"><a class="market-button" href="/chart.html?symbol=XAUUSD&amp;period=month">Gold</a><a class="market-button" href="/chart.html?symbol=XAGUSD&amp;period=month">Silver</a><a class="market-button" href="/chart.html?symbol=USOIL&amp;period=day">WTI oil</a><a class="market-button" href="/chart.html?symbol=UKOIL&amp;period=day">Brent oil</a><a class="market-button" href="/chart.html?symbol=NATGAS&amp;period=day">Natural gas</a></div>
 </section>
 </main>
 <footer>© 2026 Ledger. All rights reserved.<br><br><a href="/">Home</a><a href="/portfolio.html">Portfolio</a><a href="/about.html">About Us</a><a href="/contact.html">Contact Us</a><a href="/privacy-policy.html">Privacy Policy</a></footer>
@@ -215,21 +208,6 @@ document.addEventListener("visibilitychange",()=>{
   if(!document.hidden&&Date.now()-lastRequestAt>15000)loadMarketData(false);
 });
 
-// Keep the forex widget as Binance/CoinLore crypto sources do not provide forex.
-function loadForexWidget(){
-  const forex=document.querySelector("#forexWidget .tradingview-widget-container");
-  if(!forex||forex.querySelector("script"))return;
-  const script=document.createElement("script");
-  script.src="https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js";
-  script.async=true;
-  script.textContent=JSON.stringify({
-    width:"100%",height:"560",
-    currencies:["EUR","USD","JPY","GBP","CHF","AUD","CAD","NZD","CNY","INR"],
-    colorTheme:"dark",isTransparent:true,locale:"en"
-  });
-  forex.appendChild(script);
-}
-loadForexWidget();
 </script>
   
 

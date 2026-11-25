@@ -4,7 +4,7 @@ Static portfolio tracker and charting workspace deployed on Cloudflare Pages. Ma
 
 - `/chart.html` opens Ledger's native crypto chart by default. It uses exchange candle history and same-exchange trade streams, with a REST refresh when the stream goes down. The second crypto chart is REST-refreshed and reports its source and cadence.
 - Native charts include drawing and anchor editing, indicators, dated bar replay, local price alerts, screenshots, layouts, and a symbol watchlist. Local alerts only run while the relevant market is open and connected.
-- For commodity benchmarks, the Ledger workspace uses public benchmark history described below. The embed remains available for supported exchange futures, forex, stocks, and indices. **Import CSV** enables native tools on your own historical candles for any selected symbol and timeframe. The import stays in the current tab; it is not a live feed.
+- For commodity benchmarks, the Ledger workspace uses public benchmark history described below. Exchange futures, forex, stocks, and indices without a built-in feed can be opened with imported OHLCV data. **Import CSV** enables native tools on your own historical candles for any selected symbol and timeframe. The import stays in the current tab; it is not a live feed.
 - CSV headers: `time,open,high,low,close,volume` (volume optional). Use ISO timestamps or Unix seconds/milliseconds. Timestamps without a timezone are treated as UTC.
 - The self-hosted renderer is TradingView Lightweight Charts™ v5.0.8, under Apache 2.0. See `assets/vendor/lightweight-charts-LICENSE.txt`. This is not TradingView Supercharts or a Pine Script runtime.
 
@@ -22,6 +22,6 @@ Sources: [U.S. EIA reuse policy](https://www.eia.gov/about/copyrights_reuse.php)
 
 The chart toolbar’s star adds the current market to Favorites, including commodities. Search (Ctrl/⌘+K) also lists recently opened markets and supports arrow keys and Enter. The browser remembers the split layout; Share generates a link to chart settings and markets only, excluding local or imported data.
 
-Ledger checks the latest World Bank workbook on load and through Refresh. A chart left open checks for a new publication periodically; if the publisher is unavailable, Ledger labels the saved fallback. These are published benchmarks, not intraday prices; supported markets have a separate intraday embed.
+Ledger checks the latest World Bank workbook on load and through Refresh. A chart left open checks for a new publication periodically; if the publisher is unavailable, Ledger labels the saved fallback. These are published benchmarks, not intraday prices; Ledger does not show intraday commodity quotes without an imported data file.
 
-For drawings, use the edit tool to drag a box or its corners. Double-click the box or use its settings button to change its label, transparency, colors, or center line. Hold Shift while placing a line endpoint to snap it horizontal or vertical.
+Tap or click a box to select it, then use Edit text, Move / resize, or Delete above the chart. Drag any corner to resize in move mode. Undo restores a deleted box. Hold Shift while placing a line endpoint to snap it horizontal or vertical.
