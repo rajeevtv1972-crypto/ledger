@@ -102,9 +102,12 @@ with sync_playwright() as w:
  assert drawings()[-1]["text"]=="Label from Text tool"
  p.locator("#drawingColorOpen").click()
  expect(p.locator("#drawingColorLabel")).to_have_text("Border color")
+ expect(p.locator("#drawingFill")).to_have_value("#22aa55")
+ p.locator("#drawingFillPresets").get_by_role("button",name="Blue").click()
+ assert drawings()[-1]["fill"]=="#3b82f6" and drawings()[-1]["opacity"]==.35
  p.locator("#drawingColor").fill("#6644ff")
  p.locator("#drawingColorForm button[type=submit]").click()
- assert drawings()[-1]["color"]=="#6644ff"
+ assert drawings()[-1]["color"]=="#6644ff" and drawings()[-1]["fill"]=="#3b82f6"
  p.locator('[data-tool="text"]').click()
  p.mouse.click(area["x"]+550,area["y"]+255)
  expect(p.locator("#drawingTextDialog")).to_be_visible()
@@ -324,6 +327,13 @@ with sync_playwright() as w:
  touch.locator("#boxEditText").tap()
  touch.locator("#boxText").fill("Mobile zone")
  touch.locator("#boxSave").tap()
+ touch.locator("#drawingColorOpen").tap()
+ touch.locator("#drawingFillPresets").get_by_role("button",name="Purple").tap()
+ assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).BTC[0].fill")=="#a855f7"
+ touch.get_by_role("button",name="Done").tap()
+ touch.locator("#undo").tap()
+ assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).BTC[0].fill")!="#a855f7"
+ touch.touchscreen.tap(r["x"]+150,r["y"]+170)
  touch.locator("#boxDelete").tap()
  expect(touch.locator("#boxActions")).to_be_hidden()
  assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).BTC.length")==0
@@ -336,7 +346,7 @@ with sync_playwright() as w:
  touch.touchscreen.tap(r["x"]+185,r["y"]+240)
  touch.locator("#drawingColorOpen").tap()
  touch.locator("#drawingColor").fill("#aa22ee")
- touch.get_by_role("button",name="Save color").tap()
+ touch.get_by_role("button",name="Done").tap()
  assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).XAUUSD[0].color")== "#aa22ee"
  touch.locator("#boxDelete").tap()
  expect(touch.locator("#boxActions")).to_be_hidden()

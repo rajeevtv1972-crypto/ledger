@@ -179,16 +179,51 @@ $("drawingTextForm").onsubmit=e=>{
  changeDraw(()=>{if(draft.existing)drawings[i].text=text;else drawings.push({type:"text",a:draft.point,text,color:$("color").value})});
  setTool(keepDrawing&&!draft.existing?"text":"cursor");chooseDrawing(i);$("drawingTextDialog").close();notify("Chart text saved");
 };
+const drawingSwatches=[["Green","#22c55e"],["Red","#ef4444"],["Blue","#3b82f6"],["Teal","#14b8a6"],["Amber","#f59e0b"],["Purple","#a855f7"],["Black","#000000"],["White","#ffffff"]];
+function draftDrawing(){
+ const draft=colorDraft;
+ return draft?.key===drawingKey()&&drawings.includes(draft.drawing)?draft.drawing:null;
+}
+function syncDrawingSwatches(){
+ for(const [group,input] of [["drawingColorPresets","drawingColor"],["drawingFillPresets","drawingFill"]]){
+  for(const b of $(group).children)b.setAttribute("aria-pressed",String(b.dataset.color===$(input).value));
+ }
+}
+function commitDrawingColor(key){
+ const d=draftDrawing();if(!d||key==="fill"&&d.type!=="rectangle")return;
+ const value=$(key==="fill"?"drawingFill":"drawingColor").value,i=drawings.indexOf(d);
+ const effective=key==="fill"?d.fill||d.color:d.color;
+ if(effective!==value){
+  changeDraw(()=>{
+   // A legacy box without an explicit body color inherits its old border. Keep that body color independent.
+   if(key==="color"&&d.type==="rectangle"&&!d.fill)d.fill=boxColor(d.color,"#57d7be");
+   d[key]=value;
+  });
+  chooseDrawing(i);notify(key==="fill"?"Body color updated":"Drawing color updated");
+ }
+ delete colorDraft.preview[key];syncDrawingSwatches();
+}
+for(const [group,input,key] of [["drawingColorPresets","drawingColor","color"],["drawingFillPresets","drawingFill","fill"]]){
+ for(const [label,hex] of drawingSwatches){
+  const b=document.createElement("button");b.type="button";b.dataset.color=hex;b.style.setProperty("--swatch",hex);
+  b.setAttribute("aria-label",label);b.title=label;
+  b.onclick=()=>{$(input).value=hex;commitDrawingColor(key)};$(group).append(b);
+ }
+ $(input).oninput=()=>{if(draftDrawing()){colorDraft.preview[key]=$(input).value;syncDrawingSwatches()}};
+ $(input).onchange=()=>commitDrawingColor(key);
+}
 $("drawingColorOpen").onclick=()=>{
- const d=drawings[selected];if(!d)return;colorDraft={drawing:d,key:drawingKey()};
+ const d=drawings[selected];if(!d)return;colorDraft={drawing:d,key:drawingKey(),preview:{}};
  $("drawingColorLabel").textContent=d.type==="rectangle"?"Border color":d.type==="text"?"Text color":"Line color";
- $("drawingColor").value=boxColor(d.color,"#57d7be");showDialog("drawingColorDialog");
+ $("drawingColor").value=boxColor(d.color,"#57d7be");
+ $("drawingFillRow").hidden=d.type!=="rectangle";
+ $("drawingFill").value=boxColor(d.fill,boxColor(d.color,"#57d7be"));
+ syncDrawingSwatches();showDialog("drawingColorDialog");
 };
 $("drawingColorForm").onsubmit=e=>{
- e.preventDefault();const draft=colorDraft;if(!draft||draft.key!==drawingKey())return;
- const i=drawings.indexOf(draft.drawing);if(i<0)return;
- changeDraw(()=>drawings[i].color=$("drawingColor").value);chooseDrawing(i);$("drawingColorDialog").close();notify("Drawing color updated");
+ e.preventDefault();commitDrawingColor("color");commitDrawingColor("fill");$("drawingColorDialog").close();
 };
+$("drawingColorDialog").addEventListener("close",()=>{if(!$("drawingColorDialog").open)colorDraft=null});
 $("boxSave").onclick=()=>{const i=boxIndex,field=$("boxOpacity");if(drawings[i]?.type!=="rectangle"||!field.reportValidity())return;
  const a={text:$("boxText").value.trim(),color:$("boxBorder").value,fill:$("boxFill").value,textColor:$("boxTextColor").value,opacity:Number(field.value)/100,mid:$("boxMid").checked};
  changeDraw(()=>Object.assign(drawings[i],a));selected=i;renderObjects();$("boxDialog").close()};
@@ -340,7 +375,8 @@ function paint(now){
  lastPaint=now;canvasPainted=true;
  const r=resize(),w=chart.timeScale().width(),h=chart.panes?.()[0]?.getHeight?.()||r.height-25;
  ctx.clearRect(0,0,r.width,r.height);ctx.save();ctx.beginPath();ctx.rect(0,0,w,h);ctx.clip();
- paintSignals();drawings.forEach((d,i)=>drawOne(d,w,h,i===selected));
+ paintSignals();const colorPreview=$("drawingColorDialog").open&&colorDraft?.key===drawingKey()?colorDraft:null;
+ drawings.forEach((d,i)=>drawOne(d===colorPreview?.drawing?{...d,...(d.type==="rectangle"?{fill:d.fill||d.color}:{}),...colorPreview.preview}:d,w,h,i===selected));
  if(pending&&preview)drawOne({type:tool,a:pending,b:thirdPoint||straight(pending,preview,shiftDrawing,tool),c:preview,color:$("color").value},w,h);
  ctx.restore();requestAnimationFrame(paint);
 }
