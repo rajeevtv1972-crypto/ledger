@@ -29,7 +29,7 @@ with sync_playwright() as w:
         p.route("https://biquote.io/api/XAUUSD",quote)
         p.route("https://biquote.io/api/XAUUSD/ohlc?*",bars)
     p.goto(base+("/chart" if prod else "/chart.html")+"?symbol=XAUUSD&period=feed&interval=15",wait_until="domcontentloaded")
-    expect(p.locator('script[src*="chart-terminal.js?v=32"]')).to_have_count(1)
+    expect(p.locator('script[src*="chart-terminal.js?v=33"]')).to_have_count(1)
     expect(p.locator("#historyInfo")).to_contain_text("provider bars",timeout=22000)
     expect(p.locator("#benchmarkCredit")).to_have_text("biquote ↗")
     expect(p.locator("#tradeInfo")).to_contain_text("IST")

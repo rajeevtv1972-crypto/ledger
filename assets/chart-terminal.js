@@ -112,7 +112,7 @@ if(pane&&chart.panes){const height=$("chartarea").clientHeight;for(const p of ch
 }
 function showOHLC(a){if(benchmarkMode()){$("ohlc").textContent=a?((goldIntraday()||metalSpot())?istTime(a.time,true)+" IST":istDate(a.time))+" · "+price(a.close):"No observation";return}$("ohlc").textContent=a?"O "+price(a.open)+" H "+price(a.high)+" L "+price(a.low)+" C "+price(a.close):"O — H — L — C —"}
 function details(){let a=data.at(-1),p=data.at(-2);if(a&&!replayData)checkAlerts(a.close);$("quote").textContent=a?(benchmarkMode()&&fxBenchmarks.has(symbol)?"":"$")+price((goldFeedMode()&&!replayData&&goldFeedQuote?.price)||(goldLiveMode()&&goldQuote?.p)||a.close):"—";let change=a&&p&&p.close>0?(a.close/p.close-1)*100:null;$("change").textContent=change===null?"":(change>=0?"+":"")+change.toFixed(2)+"%";$("change").className=change>=0?"up":"down";showOHLC(a);$("details").replaceChildren();for(const [label,value] of (benchmarkMode()?[[goldIntraday()?"Last sample":"Published value",a?.close]]:[["Open",a?.open],["High",a?.high],["Low",a?.low],["Close",a?.close],[goldArchive()?"Tick count":"Volume",a?.volume]])){const e=document.createElement("span"),b=document.createElement("b");b.textContent=label;e.append(b,price(value));$("details").append(e)}renderDataWindow(barHover||getPinnedBar()||a)}
-const localImport=()=>imported?.symbol===symbol&&imported.interval===interval;
+const localImport=(s=symbol)=>imported?.symbol===s&&imported.interval===interval;
 const goldMinutes={"1m":1,"5m":5,"15m":15,"30m":30,"1h":60,"4h":240,day:1440,week:10080};
 const goldArchive=()=>symbol==="XAUUSD"&&Object.hasOwn(goldMinutes,benchmarkFrame)&&!localImport();
 const goldOverview=()=>goldArchive()&&(benchmarkFrame==="day"||benchmarkFrame==="week");
@@ -346,8 +346,9 @@ $("boxDismiss").onclick=()=>{setTool("cursor");chooseDrawing(-1)};
 function renderObjects(){syncBoxActions();if(csvOnlyMarket())return;const e=$("objects");e.replaceChildren();drawings.forEach((d,i)=>{const row=document.createElement("div");row.className="objectrow";const a=document.createElement("button"),b=document.createElement("button");a.textContent=(i+1)+". "+(d.text||d.type);a.className=selected===i?"active":"";a.onclick=()=>chooseDrawing(i);b.textContent="×";b.title="Delete drawing";b.onclick=()=>changeDraw(()=>drawings.splice(i,1));row.append(a);if(d.type==="rectangle"||d.type==="text"){const c=document.createElement("button");c.textContent="⚙";c.title=d.type==="rectangle"?"Edit box":"Edit text";c.setAttribute("aria-label",c.title+" "+(d.text||i+1));c.onclick=()=>d.type==="rectangle"?openBox(i):openDrawingText(i);row.append(c)}row.append(b);e.append(row)});if(!drawings.length)e.textContent="No drawings yet"}
 function select(s,frame){s=normalize(s);if(!valid(s))return;barHover=null;pinnedBar=null;setReplayPicking(false);historyView=false;stopLive();stopPlayback();replayData=null;seq++;busy=false;if(frame!==undefined||symbol!==s)benchmarkFrame=frame??null;
  if(s==="XAUUSD"){
-  if(!goldFrames.includes(benchmarkFrame)){benchmarkFrame="feed";interval=15;}
-  if(benchmarkFrame==="feed"&&!goldFeedIntervals.includes(interval))interval=15;
+  const defaultGoldFrame=!goldFrames.includes(benchmarkFrame);
+  if(defaultGoldFrame)benchmarkFrame="feed";
+  if(benchmarkFrame==="feed"&&!localImport(s)&&(defaultGoldFrame||!goldFeedIntervals.includes(interval)))interval=15;
   if(symbol!==s&&frame===undefined){style="candles";$("style").value=style}
  }
  symbol=s;recents=[s,...recents.filter(x=>x!==s)].slice(0,12);save("ledger_recents_v1",recents);updateStar();$("symbol").value=s;drawings=Array.isArray(all[drawingKey()])?clone(all[drawingKey()]):[];past=[];future=[];selected=-1;setTool("cursor");preferences();const url=new URL(location.href);if(!benchmarkMode()&&!goldArchive()&&!goldLiveMode()&&!goldFeedMode())url.searchParams.delete("period");if(!goldArchive())url.searchParams.delete("month");url.searchParams.set("symbol",s);url.searchParams.delete("engine");history.replaceState(null,"",url);renderWatch();renderObjects();load(true)}

@@ -33,7 +33,7 @@ with sync_playwright() as w:
         p.route("**/api/commodity-history?symbol=USOIL",oil)
         p.route("**/api/commodity-monthly",monthly)
     p.goto(path+"?symbol=XAGUSD&period=metalspot",wait_until="domcontentloaded")
-    expect(p.locator('script[src*="chart-terminal.js?v=32"]')).to_have_count(1)
+    expect(p.locator('script[src*="chart-terminal.js?v=33"]')).to_have_count(1)
     expect(p.locator("#streamState")).to_have_text("Indicative · sampled",timeout=18000)
     expect(p.locator("#tradeInfo")).to_contain_text("sampled while this tab is open")
     expect(p.locator("#benchmarkExport")).to_be_hidden()
