@@ -32,6 +32,7 @@ export function parseCandleCsv(text, limit = 20000) {
   const lines = text.replace(/^\uFEFF/, "").trim().split(/\r?\n/);
   const header = fields(lines[0]).map(x => x.toLowerCase());
   const index = Object.fromEntries(["time", "open", "high", "low", "close", "volume"].map(x => [x, header.indexOf(x)]));
+  if (index.volume < 0) index.volume = header.indexOf("tick_volume");
   if (index.time < 0) index.time = ["timestamp", "datetime", "date"].map(x => header.indexOf(x)).find(i => i >= 0) ?? -1;
   if (new Set(header).size !== header.length || ["time", "open", "high", "low", "close"].some(x => index[x] < 0)) throw new Error("CSV must contain unique time, open, high, low, and close columns.");
   const bars = new Map();
