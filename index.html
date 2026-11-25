@@ -24,6 +24,7 @@ h1{font-size:clamp(48px,7vw,84px);line-height:.94;letter-spacing:-.065em;margin:
 .cta{max-width:1180px;margin:0 auto 80px;padding:0 6vw}.cta-box{padding:38px;border-radius:24px;border:1px solid #21445c;background:linear-gradient(135deg,#0d2135,#0a1a2b)}.cta-box h2{margin:0;font-size:32px;letter-spacing:-.04em}.cta-box p{color:var(--muted);line-height:1.6}.footer{border-top:1px solid rgba(255,255,255,.06);padding:28px 6vw;color:#64798f;font-size:11px;text-align:center}
 @media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:65px}.preview{max-width:700px;transform:none}.features{grid-template-columns:1fr}.nav{display:none}}
 @media(max-width:600px){.top{padding:0 18px}.hero,.section,.cta{padding-left:18px;padding-right:18px}h1{font-size:48px}.hero p{font-size:16px}.actions{display:grid}.primary,.secondary{width:100%}.preview-main{grid-template-columns:1fr}.chart{grid-column:auto}}
+.quickGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:18px;text-align:left}.quickGrid a{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:13px 10px;border:1px solid #293c50;border-radius:12px;background:#172333;color:#e7edf6;text-decoration:none}.quickGrid a:hover,.quickGrid a:focus-visible{border-color:#57d7be;outline:0;background:#1c2c3d}.quickGrid strong,.quickGrid small{display:block}.quickGrid small{color:#a4b4c8;margin-top:3px}.quickCode{background:#22413f;color:#82dfc9;border-radius:7px;padding:5px 6px;font-size:11px;font-weight:750}.quickSection{margin-bottom:14px}@media(max-width:850px){.quickGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:420px){.quickGrid a{padding:10px 7px;gap:5px}.quickGrid small{font-size:10px}.quickCode{font-size:9px}}
 </style>
 </head>
 <body>
@@ -35,9 +36,9 @@ h1{font-size:clamp(48px,7vw,84px);line-height:.94;letter-spacing:-.065em;margin:
 <main>
 <section class="hero">
   <div>
-    <div class="badge"><span class="dot"></span> LIVE MARKET DATA</div>
-    <h1>See your crypto portfolio <span>clearly.</span></h1>
-    <p>Ledger brings your holdings, portfolio value and profit/loss into one clean dashboard while keeping market prices refreshed from the web.</p>
+    <div class="badge"><span class="dot"></span> LEDGER CHART WORKSPACE</div>
+    <h1>Chart the market. <span>Track your portfolio.</span></h1>
+    <p>Follow live crypto candles, explore decades of commodity history, and track your holdings from one workspace.</p>
     <div class="actions">
       <a class="primary" href="/chart.html">Open Ledger Chart&nbsp; →</a><a class="secondary" href="/portfolio.html">My Portfolio</a><a class="secondary" href="/markets.html">Live Markets&nbsp; ↗</a>
       <a class="secondary" href="#features">Explore Ledger</a>
@@ -47,7 +48,7 @@ h1{font-size:clamp(48px,7vw,84px);line-height:.94;letter-spacing:-.065em;margin:
   <div class="preview" aria-label="Ledger portfolio preview">
     <div class="preview-bar">
       <div class="preview-brand"><div class="preview-logo">L</div>Ledger</div>
-      <div class="live">● Live prices</div>
+      <div class="live">Example portfolio</div>
     </div>
     <div class="preview-main">
       <div class="mini"><div class="mini-label">Portfolio value</div><div class="mini-value">$24,680.42</div></div>
@@ -57,13 +58,23 @@ h1{font-size:clamp(48px,7vw,84px);line-height:.94;letter-spacing:-.065em;margin:
   </div>
 </section>
 
+<section class="section quickSection" aria-labelledby="quick-title">
+  <div class="eyebrow">Quick launch</div><h2 id="quick-title">Open a market</h2>
+  <div class="quickGrid">
+    <a href="/chart.html?symbol=BTC&amp;interval=60"><span class="quickCode">BTC</span><span><strong>Bitcoin</strong><small>Live crypto candles</small></span><span aria-hidden="true">↗</span></a>
+    <a href="/chart.html?symbol=ETH&amp;interval=60"><span class="quickCode">ETH</span><span><strong>Ethereum</strong><small>Live crypto candles</small></span><span aria-hidden="true">↗</span></a>
+    <a href="/chart.html?symbol=XAUUSD&amp;period=month"><span class="quickCode">XAU</span><span><strong>Gold</strong><small>Monthly benchmark</small></span><span aria-hidden="true">↗</span></a>
+    <a href="/chart.html?symbol=USOIL&amp;period=day"><span class="quickCode">WTI</span><span><strong>WTI crude oil</strong><small>Daily spot history</small></span><span aria-hidden="true">↗</span></a>
+  </div>
+</section>
+
 <section class="section" id="features">
   <div class="eyebrow">Built for clarity</div>
-  <h2>Everything you need to follow your holdings.</h2>
-  <p>Add your assets, see current market values, and keep an eye on your performance without a cluttered interface.</p>
+  <h2>From chart setup to portfolio tracking.</h2>
+  <p>Draw on charts, compare two markets, or check how your holdings are performing.</p>
   <div class="features">
     <article class="feature"><div class="icon">₿</div><h3>Track holdings</h3><p>Record the coins you own and your average buy price in a simple portfolio view.</p></article>
-    <article class="feature"><div class="icon">↗</div><h3>Live prices</h3><p>Refresh current crypto prices online so portfolio values and profit/loss stay up to date.</p></article>
+    <article class="feature"><div class="icon">↗</div><h3>Analyze markets</h3><p>Use drawing tools, indicators and replay on live crypto and published commodity history.</p></article>
     <article class="feature"><div class="icon">$</div><h3>Understand P/L</h3><p>See invested value, current value and profit/loss for each holding and your portfolio overall.</p></article>
   </div>
 </section>
