@@ -29,7 +29,7 @@ with sync_playwright() as w:
     p.on("request",lambda r:requests.append(r.url))
     for attempt in range(20 if prod else 1):
         p.goto(base+"/chart.html?symbol=XAUUSD&period=1m&check="+str(int(time.time())),wait_until="domcontentloaded",timeout=15000)
-        if p.locator('script[src*="chart-terminal.js?v=31"]').count():break
+        if p.locator('script[src*="chart-terminal.js?v=32"]').count():break
         time.sleep(3)
     else:raise RuntimeError("Expected Ledger release did not appear")
     expect(p.locator("#historyInfo")).to_contain_text("20,000 bars")
@@ -53,7 +53,17 @@ with sync_playwright() as w:
     p.locator("#live").tap()
     expect(p.locator("#streamState")).to_have_text("Historical candles · not live")
     p.locator("#goDate").tap()
+    p.locator("#dateInput").fill("2026-10-01")
+    p.locator("#dateApply").tap()
+    expect(p.locator("#goldMonthOpen")).to_have_text("History: 2026-09",timeout=25000)
+    assert "month=2026-09" in p.url
+    p.locator("#goDate").tap()
     p.locator("#dateInput").fill("2025-06-15")
+    p.locator("#dateApply").tap()
+    expect(p.locator("#status")).to_have_text("No Gold candles on 2025-06-15 IST · kept current chart",timeout=25000)
+    assert "month=2026-09" in p.url
+    p.locator("#goDate").tap()
+    p.locator("#dateInput").fill("2025-06-16")
     p.locator("#dateApply").tap()
     expect(p.locator("#goldMonthOpen")).to_have_text("History: 2025-06",timeout=25000)
     assert "month=2025-06" in p.url
@@ -65,4 +75,4 @@ with sync_playwright() as w:
     assert "month=" not in p.url
     assert p.locator("iframe").count()==0
     assert not errors,errors
-    print("Mobile Gold history verified: lean default, January 2021, date jump to June 2025, persistence, replay export, and return to latest.")
+    print("Mobile Gold history verified: lean default, January 2021, IST month-boundary and closed-day date jumps, persistence, replay export, and return to latest.")

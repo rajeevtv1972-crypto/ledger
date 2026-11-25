@@ -91,3 +91,17 @@ export async function loadGoldMonth(month, signal, fetcher=fetch) {
   while(newest.size>2)newest.delete(newest.keys().next().value);
   return result;
 }
+
+
+// The Date picker supplies midnight IST. Archive files instead follow UTC months.
+export async function loadGoldDate(start, signal, loadMonth=loadGoldMonth) {
+  const end=start+86400;
+  const utcMonth=t=>new Date(t*1000).toISOString().slice(0,7);
+  for(const month of new Set([utcMonth(start),utcMonth(end-1)])){
+    if(!valid(month))continue;
+    const archive=await loadMonth(month,signal);
+    const first=archive.bars.find(bar=>bar.time>=start && bar.time<end);
+    if(first)return {archive,first};
+  }
+  return null;
+}

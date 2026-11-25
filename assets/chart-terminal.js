@@ -827,12 +827,12 @@ async function openHistoryWindow(target){
  finally{clearTimeout(timer);if(ticket===seq){historyBusy=false;historyLabel()}}
 }
 async function jump(target,period=false){
- if(goldArchive()&&!goldOverview()&&!period&&!busy&&!replayData&&data.length&&(target<data[0].time||target>data.at(-1).time)){
-   const month=istDate(target).slice(0,7);
-   if(!validGoldMonth(month)){notify("Gold minute archive runs from Jan 2021 to Oct 2026.");return}
-   if(month!==goldMonth){if(!await loadGoldArchive(month))return;}
- }
  if(csvOnlyMarket()||!data.length||replayData||busy||historyBusy){notify("Open a native live chart before using date ranges");return}
+ if(goldArchive()&&!goldOverview()&&!period){
+   const found=await loadGoldArchive(null,target);
+   if(!found)return;
+   target=found.time;
+ }
  if(!period&&!benchmarkMode()&&!usingImport()&&hasHistory&&(target<data[0].time||historyView&&target>data.at(-1).time)){
    if(!await openHistoryWindow(target))return;
  }else if(period&&hasHistory&&!benchmarkMode()&&!usingImport()&&target<data[0].time){
@@ -913,7 +913,7 @@ $("goldMonthForm").onsubmit=e=>{
  $("goldMonthDialog").close();loadGoldArchive(requested);
 };
 $("goldRecent").onclick=()=>{if(goldArchive()&&!replayData){$("goldMonthDialog").close();loadGoldArchive(null)}};
-async function loadGoldArchive(requested=goldMonth){
+async function loadGoldArchive(requested=goldMonth,dateTarget=null){
   const frame=benchmarkFrame,overview=goldOverview(),minutes=goldMinutes[frame],archiveKey="archive:XAUUSD:"+frame;
   const keep=loadedKey===archiveKey&&data.length>0&&benchmarkInfo, ticket=++seq;
   controller?.abort();controller=new AbortController();const ctrl=controller;
@@ -925,11 +925,19 @@ async function loadGoldArchive(requested=goldMonth){
   if(!keep){benchmarkInfo=null;data=[];if(series)series.setData([]);}
   nativeControls(true);showBenchmarkFrames(goldFrames);$("pair").textContent="XAU/USD · Historical Gold";
   $("source").textContent=(frame==="day"?"1D":frame==="week"?"1W":frame)+" candles · USD/troy oz";$("alertOpen").disabled=true;details();historyLabel();
-  if(keep)notify("Loading "+(requested||"latest")+" Gold candles…");else message("Loading Gold candles…");
+  if(keep)notify(dateTarget!==null?"Finding Gold candles on "+istDate(dateTarget)+" IST…":"Loading "+(requested||"latest")+" Gold candles…");else message("Loading Gold candles…");
   try{
     const [m,c]=await Promise.all([import("/assets/gold-minute.js"),import("/assets/gold-candles.js"),getLibrary()]);
-    const archive=overview?await c.loadGoldOverview(ctrl.signal):requested?await (await import("/assets/gold-history.js")).loadGoldMonth(requested,ctrl.signal):await m.loadGoldMinute(ctrl.signal);
-    if(ticket!==seq||!goldArchive())return false;
+    let archive,dateBar=null;
+    if(dateTarget!==null){
+      const found=await (await import("/assets/gold-history.js?v=2")).loadGoldDate(dateTarget,ctrl.signal);
+      if(ticket!==seq||!goldArchive())return false;
+      if(!found){notify("No Gold candles on "+istDate(dateTarget)+" IST · kept current chart");return false}
+      archive=found.archive;dateBar=found.first;requested=archive.month;
+    }else{
+      archive=overview?await c.loadGoldOverview(ctrl.signal):requested?await (await import("/assets/gold-history.js?v=2")).loadGoldMonth(requested,ctrl.signal):await m.loadGoldMinute(ctrl.signal);
+      if(ticket!==seq||!goldArchive())return false;
+    }
     if(!overview)goldMonth=requested;benchmarkInfo=archive;data=c.aggregateGold(archive.bars,minutes);loadedKey=archiveKey;
     const url=new URL(location.href);url.searchParams.set("period",frame);url.searchParams.set("interval",String(minutes));
     if(!overview&&goldMonth)url.searchParams.set("month",goldMonth);else url.searchParams.delete("month");history.replaceState(null,"",url);
@@ -940,10 +948,10 @@ async function loadGoldArchive(requested=goldMonth){
     $("tradeInfo").textContent="Spot Gold CFD · tick counts · archive: Jan 2021–Oct 2026";
     nativeControls(true);$("alertOpen").disabled=true;applySettings();updateChart(null);
     chart.timeScale().setVisibleLogicalRange({from:Math.max(0,data.length-100),to:data.length+5});
-    setLiveStatus("archive");message("");notify("Gold OHLC candles · historical only");renderObjects();return true;
+    setLiveStatus("archive");message("");notify("Gold OHLC candles · historical only");renderObjects();return dateBar?{time:Math.floor(dateBar.time/(minutes*60))*minutes*60}:true;
   }catch{
     if(ticket===seq){
-      if(keep)notify("That month couldn’t load · keeping the current candles");
+      if(keep)notify(dateTarget!==null?"Gold candles couldn’t load for that date · keeping the current candles":"That month couldn’t load · keeping the current candles");
       else{message("Gold archive unavailable. Try Refresh, or select the 1m view and choose Gold history → Latest archive bars.");notify("Chart data unavailable");}
     }
     return false;

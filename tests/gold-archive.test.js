@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFile,open} from "node:fs/promises";
 import {gunzipSync} from "node:zlib";
-import {loadGoldMonth} from "../assets/gold-history.js";
+import {loadGoldDate,loadGoldMonth} from "../assets/gold-history.js";
 import {onRequestGet} from "../functions/api/gold-history-range.js";
 
 test("Gold indexes cover the permitted archive and constrain each download",async()=>{
@@ -41,4 +41,36 @@ test("seekable DEFLATE reconstructs every month and verifies every row checksum"
   }
   assert.equal(count,2032041);
  }finally{await raw.close();}
+});
+
+
+test("Gold archive dates search UTC shards in IST day order",async()=>{
+ const start=Date.parse("2026-10-01T00:00:00+05:30")/1000;
+ const midnightUtc=Date.parse("2026-10-01T00:00:00Z")/1000;
+ const months=[];
+ const sep="2026-09",oct="2026-10";
+ let fixtures={[sep]:[start-60,start+60],[oct]:[midnightUtc]};
+ const signal=new AbortController().signal;
+ const loadMonth=async(month,requestSignal)=>{
+  assert.equal(requestSignal,signal);
+  months.push(month);
+  return {month,bars:fixtures[month].map(time=>({time}))};
+ };
+ let result=await loadGoldDate(start,signal,loadMonth);
+ assert.equal(result.first.time,start+60);
+ assert.equal(result.archive.month,sep);
+ assert.deepEqual(months.splice(0),[sep]);
+
+ fixtures[sep]=[start-60];
+ result=await loadGoldDate(start,signal,loadMonth);
+ assert.equal(result.first.time,midnightUtc);
+ assert.equal(result.archive.month,oct);
+ assert.deepEqual(months.splice(0),[sep,oct]);
+
+ fixtures[oct]=[start+86400];
+ assert.equal(await loadGoldDate(start,signal,loadMonth),null);
+ assert.deepEqual(months.splice(0),[sep,oct]);
+
+ assert.equal(await loadGoldDate(start+86400,signal,loadMonth).then(x=>x.first.time),start+86400);
+ assert.deepEqual(months,[oct]);
 });
