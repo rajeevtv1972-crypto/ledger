@@ -30,3 +30,5 @@
  .top{gap:4px}
  .top :is(button,select){padding-inline:6px}
 }
+#goldMonthOpen{color:var(--accent);min-height:29px;padding:3px 8px}
+@media(pointer:coarse){#goldMonthOpen{min-height:36px}}

@@ -60,3 +60,18 @@ Ledger uses the TradingView Supercharts workflow as a reference, not its
 embedded product. Pine Script, broker execution and cloud alerts are not
 implemented. Source availability, coverage and licensing vary by market;
 a historical Gold CSV is not a live feed.
+
+**Browse older Gold minute candles:** choose **1m → Gold history**, or use
+**Date** to jump to an older candle. The archive has 2,032,041 source candles
+from 2021-01-03 23:05 UTC through 2026-10-01 14:56 UTC. The latest snapshot
+still opens without an external request. Older views load one month at a
+time using a byte range of the original, pinned CC BY 4.0 ZIP. Ledger verifies
+each decompressed month with SHA-256, omits the source spread and real-volume
+columns, and preserves OHLC and tick counts. The archive is historical and
+separate from XAUS indicative prices. ZIP source attribution: **Mikael Bradford
+S. R. Sepaul / Sepaul Research**, Empirical Market Datasets v1.0.0.
+
+To regenerate indexes, download the exact pinned ZIP whose SHA-256 is recorded
+in `scripts/build-gold-index.py`. Run `python scripts/build-gold-index.py ZIP`
+with a C compiler and zlib development headers. Verify all archive months
+with `LEDGER_GOLD_ZIP=ZIP node --test tests/gold-archive.test.js`.

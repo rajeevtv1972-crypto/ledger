@@ -7,6 +7,10 @@ const commodities={XAUUSD:["Gold spot"],XAGUSD:["Silver spot"],USOIL:["WTI oil"]
 // Benchmarks with no matching exchange series do not pretend to be futures.
 for(const [s,n] of Object.entries({MAIZE:"Maize benchmark",WHEATSRW:"U.S. soft red winter wheat",SOYBEANSPOT:"Soybean benchmark",COCOA:"Cocoa benchmark",COFFEE:"Arabica coffee",ALUMINUM:"Aluminum benchmark",NICKEL:"Nickel benchmark",ZINC:"Zinc benchmark"}))commodities[s]=[n];
 const benchmarkSymbols=new Set(["XAUUSD","XAGUSD","PLATINUM","COPPER","USOIL","UKOIL","NATGAS","MAIZE","WHEATSRW","SOYBEANSPOT","COCOA","COFFEE","ALUMINUM","NICKEL","ZINC"]);
+const firstArchiveMonth="2021-01",lastArchiveMonth="2026-10";
+const validGoldMonth=m=>typeof m==="string"&&/^\d{4}-(0[1-9]|1[0-2])$/.test(m)&&m>=firstArchiveMonth&&m<=lastArchiveMonth;
+const initialGoldMonth=new URLSearchParams(location.search).get("month");
+let goldMonth=validGoldMonth(initialGoldMonth)?initialGoldMonth:null;
 let benchmarkFrame=new URLSearchParams(location.search).get("period"), benchmarkInfo=null, benchmarkModule;
 const getBenchmarks=()=>benchmarkModule??=import("/assets/commodity-benchmarks.js?v=4").catch(e=>{benchmarkModule=null;throw e});
 const otherMarkets={EURUSD:["Euro / US Dollar","Forex"],GBPUSD:["British Pound / US Dollar","Forex"],USDJPY:["US Dollar / Yen","Forex"],GBPJPY:["British Pound / Yen","Forex"],AUDUSD:["Australian Dollar / US Dollar","Forex"],USDCAD:["US Dollar / Canadian Dollar","Forex"],USDCHF:["US Dollar / Swiss Franc","Forex"],NZDUSD:["New Zealand Dollar / US Dollar","Forex"],EURJPY:["Euro / Yen","Forex"],EURGBP:["Euro / British Pound","Forex"],USDINR:["US Dollar / Indian Rupee","Forex"],DXY:["US Dollar Index","Indices"],SPX:["S&P 500","Indices"],NDX:["Nasdaq 100","Indices"],DJI:["Dow Jones","Indices"],VIX:["Volatility Index","Indices"],NIFTY:["Nifty 50","Indices"],BANKNIFTY:["Nifty Bank","Indices"],SENSEX:["Sensex","Indices"],FTSE:["FTSE 100","Indices"],DAX:["DAX","Indices"],AAPL:["Apple","Stocks"],MSFT:["Microsoft","Stocks"],NVDA:["Nvidia","Stocks"],TSLA:["Tesla","Stocks"],AMZN:["Amazon","Stocks"],GOOGL:["Alphabet","Stocks"],META:["Meta","Stocks"],RELIANCE:["Reliance Industries","Stocks"],TCS:["Tata Consultancy Services","Stocks"]};
@@ -98,7 +102,7 @@ const goldIntraday=()=>benchmarkMode()&&symbol==="XAUUSD"&&["5m","15m","30m","1h
 const stepSeconds=()=>benchmarkMode()?({"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400,day:86400,week:604800,month:2629800,year:31557600}[benchmarkFrame]||2629800):interval*60;
 const benchmarkRestricted=new Set(["vol","vwap","donchian","atr","stoch","obv","cci","fvg","sweep"]);
 function csvOnlyMarket(){return !usingImport()&&!benchmarkMode()&&(Object.hasOwn(commodities,symbol)||Object.hasOwn(otherMarkets,symbol))}
-function nativeControls(on){const bm=on&&benchmarkMode();syncReplayControls();$("replay").disabled=!on;const archived=on&&goldArchive();document.body.classList.toggle("benchmark-mode",bm);document.body.classList.toggle("gold-archive",archived);$("benchmarkFrames").hidden=!bm&&!archived;$("benchmarkCredit").hidden=(!bm&&!archived)||!benchmarkInfo;$("benchmarkExport").hidden=(!bm&&!archived)||!benchmarkInfo;$("goldLicense").hidden=!archived||!benchmarkInfo;$("alertOpen").title=bm?"Alerts require a live feed":"Price alerts";q(".tools button,.bottom button,[data-ind],#style,#color,#indOpen,#goDate,#settingsOpen,#alertOpen").forEach(b=>b.disabled=!on);$("replayPlay").disabled=!on||!replayData;$("replaySpeed").disabled=!on||!replayData;$("older").disabled=!on||!hasHistory||historyEnded||historyBusy||!!replayData;$("step").disabled=!on||!replayData;$("live").disabled=!on||!replayData;for(const input of q("[data-ind]")){input.disabled=!on||(bm&&benchmarkRestricted.has(input.dataset.ind));input.closest("label").title=input.disabled&&bm?"Not available with benchmark observations":""}if(bm){$("alertOpen").disabled=true;if(data.some(a=>a.close<=0))$("log").disabled=true}
+function nativeControls(on){const bm=on&&benchmarkMode();syncReplayControls();$("replay").disabled=!on;const archived=on&&goldArchive();document.body.classList.toggle("benchmark-mode",bm);document.body.classList.toggle("gold-archive",archived);$("benchmarkFrames").hidden=!bm&&!archived;$("benchmarkCredit").hidden=(!bm&&!archived)||!benchmarkInfo;$("benchmarkExport").hidden=(!bm&&!archived)||!benchmarkInfo;$("goldLicense").hidden=!archived||!benchmarkInfo;$("goldMonthOpen").hidden=!archived;$("goldMonthOpen").disabled=!!replayData;$("alertOpen").title=bm?"Alerts require a live feed":"Price alerts";q(".tools button,.bottom button,[data-ind],#style,#color,#indOpen,#goDate,#settingsOpen,#alertOpen").forEach(b=>b.disabled=!on);$("replayPlay").disabled=!on||!replayData;$("replaySpeed").disabled=!on||!replayData;$("older").disabled=!on||!hasHistory||historyEnded||historyBusy||!!replayData;$("step").disabled=!on||!replayData;$("live").disabled=!on||!replayData;for(const input of q("[data-ind]")){input.disabled=!on||(bm&&benchmarkRestricted.has(input.dataset.ind));input.closest("label").title=input.disabled&&bm?"Not available with benchmark observations":""}if(bm){$("alertOpen").disabled=true;if(data.some(a=>a.close<=0))$("log").disabled=true}
 $("chart").style.visibility=on?"visible":"hidden";canvas.style.display=on?"block":"none";}
 function showUnavailable(){
   stopLive();controller?.abort();seq++;busy=false;historyBusy=false;hasHistory=false;historyEnded=true;clearTimeout(historyTimer);
@@ -187,7 +191,7 @@ $("boxMove").onclick=()=>{setTool(tool==="edit"?"cursor":"edit");if(tool==="edit
 $("boxDelete").onclick=()=>{if(!drawings[selected])return;const i=selected;changeDraw(()=>drawings.splice(i,1));setTool("cursor");notify("Drawing deleted · Undo restores it")};
 $("boxDismiss").onclick=()=>{setTool("cursor");chooseDrawing(-1)};
 function renderObjects(){syncBoxActions();if(csvOnlyMarket())return;const e=$("objects");e.replaceChildren();drawings.forEach((d,i)=>{const row=document.createElement("div");row.className="objectrow";const a=document.createElement("button"),b=document.createElement("button");a.textContent=(i+1)+". "+(d.text||d.type);a.className=selected===i?"active":"";a.onclick=()=>chooseDrawing(i);b.textContent="×";b.title="Delete drawing";b.onclick=()=>changeDraw(()=>drawings.splice(i,1));row.append(a);if(d.type==="rectangle"||d.type==="text"){const c=document.createElement("button");c.textContent="⚙";c.title=d.type==="rectangle"?"Edit box":"Edit text";c.setAttribute("aria-label",c.title+" "+(d.text||i+1));c.onclick=()=>d.type==="rectangle"?openBox(i):openDrawingText(i);row.append(c)}row.append(b);e.append(row)});if(!drawings.length)e.textContent="No drawings yet"}
-function select(s,frame){s=normalize(s);if(!valid(s))return;barHover=null;pinnedBar=null;setReplayPicking(false);stopLive();stopPlayback();replayData=null;seq++;busy=false;if(frame!==undefined||symbol!==s)benchmarkFrame=frame??null;symbol=s;recents=[s,...recents.filter(x=>x!==s)].slice(0,12);save("ledger_recents_v1",recents);updateStar();$("symbol").value=s;drawings=Array.isArray(all[drawingKey()])?clone(all[drawingKey()]):[];past=[];future=[];selected=-1;setTool("cursor");preferences();const url=new URL(location.href);if(!benchmarkMode()&&!goldArchive())url.searchParams.delete("period");url.searchParams.set("symbol",s);url.searchParams.delete("engine");history.replaceState(null,"",url);renderWatch();renderObjects();load(true)}
+function select(s,frame){s=normalize(s);if(!valid(s))return;barHover=null;pinnedBar=null;setReplayPicking(false);stopLive();stopPlayback();replayData=null;seq++;busy=false;if(frame!==undefined||symbol!==s)benchmarkFrame=frame??null;symbol=s;recents=[s,...recents.filter(x=>x!==s)].slice(0,12);save("ledger_recents_v1",recents);updateStar();$("symbol").value=s;drawings=Array.isArray(all[drawingKey()])?clone(all[drawingKey()]):[];past=[];future=[];selected=-1;setTool("cursor");preferences();const url=new URL(location.href);if(!benchmarkMode()&&!goldArchive())url.searchParams.delete("period");if(!goldArchive())url.searchParams.delete("month");url.searchParams.set("symbol",s);url.searchParams.delete("engine");history.replaceState(null,"",url);renderWatch();renderObjects();load(true)}
 function setTool(t){if(t==="edit"&&lockDrawings){notify("Drawing positions are locked");return}if(editDrag){drawings=editDrag.before;editDrag=null}tool=t;pending=null;preview=null;thirdPoint=null;q("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===t));canvas.classList.toggle("armed",t!=="cursor");syncBoxActions();$("hint").textContent=t==="cursor"?"Crosshair":t==="edit"?"Drag a handle to move a drawing or a box corner to resize":t==="text"?"Tap a box to label it, or tap the chart to add a note":t+" · select point"}
 function resize(){const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;if(canvas.width!==Math.round(r.width*d)||canvas.height!==Math.round(r.height*d)){canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d)}ctx.setTransform(d,0,0,d,0,0);return r}
 function point(e){if(!series||!data.length)return null;const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,ts=chart.timeScale();if(x<0||x>ts.width()||y<0||y>(chart.panes?.()[0]?.getHeight?.()||r.height-25))return null;const ix=ts.coordinateToLogical(x),p=series.coordinateToPrice(y);if(ix==null||p==null||!Number.isFinite(p))return null;const i=Math.round(ix);let a=data[i],time=a?.time??(data[0].time+i*stepSeconds()),value=p;if(magnet&&a)value=[a.open,a.high,a.low,a.close].sort((a,b)=>Math.abs(a-p)-Math.abs(b-p))[0];return {time,price:value}}
@@ -484,14 +488,14 @@ $("workspaceSaveForm").onsubmit=e=>{
  const existing=workspaces.findIndex(item=>item?.name?.toLowerCase()===name.toLowerCase());
  if(existing>=0){$("workspaceFeedback").textContent="That name already exists. Use a new name or remove the existing workspace.";return}
  if(workspaces.length>=30){$("workspaceFeedback").textContent="You can save up to 30 workspaces on this device.";return}
- const item={name,symbol,interval,style,frame:(benchmarkMode()||goldArchive())?benchmarkFrame:null,layout:comparison,compare:$("compareSymbol").value,compareInterval:$("compareInterval").value,ind:q("[data-ind]:checked").map(x=>x.dataset.ind)};
+ const item={name,symbol,interval,style,frame:(benchmarkMode()||goldArchive())?benchmarkFrame:null,goldMonth:goldArchive()?goldMonth:null,layout:comparison,compare:$("compareSymbol").value,compareInterval:$("compareInterval").value,ind:q("[data-ind]:checked").map(x=>x.dataset.ind)};
  workspaces.push(item);save("ledger_workspaces_v1",workspaces);listWorkspaces(workspaces.length-1);
  $("workspaceName").value="";$("workspaceFeedback").textContent=localImport()?"Workspace saved. Local CSV data stays in this tab.":"Saved “"+name+"” on this device.";
 };
 $("workspaceLoad").onclick=()=>{
  const x=workspaces[Number($("workspaceSelect").value)];
  if(!$("workspaceSelect").value||!x||!valid(x.symbol)||!intervals.includes(x.interval)||!styles.includes(x.style)||!layouts.includes(x.layout))return;
- interval=x.interval;style=x.style;$("style").value=style;
+ goldMonth=validGoldMonth(x.goldMonth)?x.goldMonth:null;interval=x.interval;style=x.style;$("style").value=style;
  q("[data-i]").forEach(b=>b.classList.toggle("active",Number(b.dataset.i)===interval));
  if(Array.isArray(x.ind))q("[data-ind]").forEach(b=>b.checked=x.ind.includes(b.dataset.ind));
  if(q("#compareSymbol option").some(o=>o.value===x.compare))$("compareSymbol").value=x.compare;
@@ -510,15 +514,21 @@ $("shareChart").onclick=()=>{
   const url=new URL("/chart.html",location.origin);
   url.searchParams.set("symbol",symbol);
   url.searchParams.set("interval",interval);url.searchParams.set("style",style);url.searchParams.set("layout",comparison);
-  if((benchmarkMode()||goldArchive())&&benchmarkFrame)url.searchParams.set("period",benchmarkFrame);
+  if((benchmarkMode()||goldArchive())&&benchmarkFrame)url.searchParams.set("period",benchmarkFrame);if(goldArchive()&&goldMonth)url.searchParams.set("month",goldMonth);
   if(comparison!=="single"){url.searchParams.set("compare",$("compareSymbol").value);url.searchParams.set("compareInterval",$("compareInterval").value)}
   $("shareUrl").value=url.href;$("shareFeedback").textContent=localImport()?"This link opens the public market without your imported data.":"";
   showDialog("shareDialog");$("shareUrl").select();
 };
 $("copyChart").onclick=async()=>{try{await navigator.clipboard.writeText($("shareUrl").value);$("shareFeedback").textContent="Link copied."}catch{$("shareUrl").select();$("shareFeedback").textContent="Link selected. Press Ctrl+C or ⌘C to copy."}};
 
-async function jump(target,period=false){if(csvOnlyMarket()||!data.length||replayData||busy||historyBusy){notify("Open a native live chart before using date ranges");return}const k=key();let count=0;while(data[0]?.time>target&&hasHistory&&!historyEnded&&count++<8&&key()===k){const first=data[0].time;await loadOlder(false);if(data[0]?.time===first)break}if(key()!==k||!data.length)return;let i=data.findIndex(a=>a.time>=target);if(i<0)i=data.length-1;const end=period?data.length+4:Math.min(data.length+4,i+45);chart.timeScale().setVisibleLogicalRange({from:period?Math.max(0,i):Math.max(0,i-45),to:Math.max(i+1,end)});if(target<data[0].time)notify("Showing earliest loaded history · use Load older for more");else notify("Date range updated");}
-q("[data-period]").forEach(b=>b.onclick=()=>{if(data.length)jump(data.at(-1).time-Number(b.dataset.period),true)});$("goDate").onclick=()=>{$("dateInput").max=new Date().toISOString().slice(0,10);$("dateInput").value=new Date((data[0]?.time||Date.now()/1000)*1000).toISOString().slice(0,10);showDialog("dateDialog")};$("dateApply").onclick=()=>{const t=Date.parse($("dateInput").value)/1000;if(Number.isFinite(t)){$("dateDialog").close();jump(t)}};
+async function jump(target,period=false){
+ if(goldArchive()&&!period&&!busy&&!replayData&&data.length&&(target<data[0].time||target>data.at(-1).time)){
+   const month=new Date(target*1000).toISOString().slice(0,7);
+   if(!validGoldMonth(month)){notify("Gold minute archive runs from Jan 2021 to Oct 2026.");return}
+   if(month!==goldMonth){if(!await loadGoldArchive(month))return;}
+ }
+ if(csvOnlyMarket()||!data.length||replayData||busy||historyBusy){notify("Open a native live chart before using date ranges");return}const k=key();let count=0;while(data[0]?.time>target&&hasHistory&&!historyEnded&&count++<8&&key()===k){const first=data[0].time;await loadOlder(false);if(data[0]?.time===first)break}if(key()!==k||!data.length)return;let i=data.findIndex(a=>a.time>=target);if(i<0)i=data.length-1;const end=period?data.length+4:Math.min(data.length+4,i+45);chart.timeScale().setVisibleLogicalRange({from:period?Math.max(0,i):Math.max(0,i-45),to:Math.max(i+1,end)});if(target<data[0].time)notify("Showing earliest loaded history · use Load older for more");else notify("Date range updated");}
+q("[data-period]").forEach(b=>b.onclick=()=>{if(data.length)jump(data.at(-1).time-Number(b.dataset.period),true)});$("goDate").onclick=()=>{$("dateInput").max=goldArchive()?"2026-10-01":new Date().toISOString().slice(0,10);$("dateInput").min=goldArchive()?"2021-01-03":"";$("dateInput").value=new Date((data[0]?.time||Date.now()/1000)*1000).toISOString().slice(0,10);showDialog("dateDialog")};$("dateApply").onclick=()=>{const t=Date.parse($("dateInput").value)/1000;if(Number.isFinite(t)){$("dateDialog").close();jump(t)}};
 let playbackTimer=null;
 function stopPlayback(){if(playbackTimer)clearInterval(playbackTimer);playbackTimer=null;if($("replayPlay")){$("replayPlay").textContent="▶";$("replayPlay").setAttribute("aria-label","Play replay")}}
 function play(){if(!replayData)return;if(playbackTimer){stopPlayback();return}$("replayPlay").textContent="Ⅱ";$("replayPlay").setAttribute("aria-label","Pause replay");playbackTimer=setInterval(()=>{if(!replayData||replayIndex>=replayData.length){stopPlayback();return}replayIndex++;replayStep()},Number($("replaySpeed").value))}
@@ -561,30 +571,63 @@ async function loadBenchmark({refresh=false,quiet=false}={}){
   }catch{if(ticket===seq){if(!keep)message(goldIntraday()?"Intraday Gold samples are unavailable. Try Refresh, switch to 1M/1Y, or import broker candles.":"Benchmark history unavailable. Try Refresh, or import your own CSV.");if(keep&&goldIntraday())setLiveStatus("sampleStale");notify(keep?"Provider unavailable · showing loaded prices":"Chart data unavailable")}}
   finally{if(ticket===seq)busy=false}
 }
-async function loadGoldArchive(){
-  const ticket=++seq;
+function fillGoldMonths(year,chosen="01"){
+ const menu=$("goldHistoryMonth");menu.replaceChildren();
+ for(let month=1;month<=(year==="2026"?10:12);month++){
+  const date=new Date(Date.UTC(Number(year),month-1,1));
+  menu.add(new Option(new Intl.DateTimeFormat("en-GB",{month:"long",timeZone:"UTC"}).format(date),String(month).padStart(2,"0")));
+ }
+ menu.value=[...menu.options].some(o=>o.value===chosen)?chosen:"01";
+}
+for(let year=2026;year>=2021;year--)$("goldHistoryYear").add(new Option(year,year));
+$("goldHistoryYear").onchange=()=>fillGoldMonths($("goldHistoryYear").value,$("goldHistoryMonth").value);
+$("goldMonthOpen").onclick=()=>{
+ if(!goldArchive()||replayData)return;
+ const [year,month]=(goldMonth||"2026-09").split("-");
+ $("goldHistoryYear").value=year;fillGoldMonths(year,month);showDialog("goldMonthDialog");
+};
+$("goldMonthForm").onsubmit=e=>{
+ e.preventDefault();const requested=$("goldHistoryYear").value+"-"+$("goldHistoryMonth").value;
+ if(!goldArchive()||replayData||!validGoldMonth(requested))return;
+ $("goldMonthDialog").close();loadGoldArchive(requested);
+};
+$("goldRecent").onclick=()=>{if(goldArchive()&&!replayData){$("goldMonthDialog").close();loadGoldArchive(null)}};
+async function loadGoldArchive(requested=goldMonth){
+  const keep=loadedKey==="archive:XAUUSD:1m"&&data.length>0&&benchmarkInfo, ticket=++seq;
   controller?.abort();controller=new AbortController();const ctrl=controller;
-  stopLive();stopPlayback();clearTimeout(historyTimer);busy=true;hasHistory=historyBusy=false;historyEnded=true;nextBefore=null;replayData=null;
-  interval=1;benchmarkInfo=null;data=[];if(series)series.setData([]);
+  const timer=setTimeout(()=>ctrl.abort(),23000);
+  setReplayPicking(false);stopPlayback();clearTimeout(historyTimer);
+  if(!keep)stopLive();
+  busy=true;hasHistory=historyBusy=false;historyEnded=true;nextBefore=null;replayData=null;
+  interval=1;barHover=null;pinnedBar=null;
+  if(!keep){benchmarkInfo=null;data=[];if(series)series.setData([]);}
   nativeControls(true);showBenchmarkFrames(goldFrames);$("pair").textContent="XAU/USD · Historical Gold";
-  $("source").textContent="1m candles · USD/troy oz";$("alertOpen").disabled=true;details();historyLabel();message("Loading Gold 1-minute candles…");
-  const url=new URL(location.href);url.searchParams.set("period","1m");url.searchParams.set("interval","1");history.replaceState(null,"",url);
+  $("source").textContent="1m candles · USD/troy oz";$("alertOpen").disabled=true;details();historyLabel();
+  if(keep)notify("Loading "+(requested||"latest")+" Gold candles…");else message("Loading Gold 1-minute candles…");
   try{
     const [m]=await Promise.all([import("/assets/gold-minute.js"),getLibrary()]);
-    const archive=await m.loadGoldMinute(ctrl.signal);
-    if(ticket!==seq||!goldArchive())return;
-    benchmarkInfo=archive;data=archive.bars;loadedKey="archive:XAUUSD:1m";
+    const archive=requested?await (await import("/assets/gold-history.js")).loadGoldMonth(requested,ctrl.signal):await m.loadGoldMinute(ctrl.signal);
+    if(ticket!==seq||!goldArchive())return false;
+    goldMonth=requested;benchmarkInfo=archive;data=archive.bars;loadedKey="archive:XAUUSD:1m";
+    const url=new URL(location.href);url.searchParams.set("period","1m");url.searchParams.set("interval","1");
+    if(goldMonth)url.searchParams.set("month",goldMonth);else url.searchParams.delete("month");history.replaceState(null,"",url);
     startChart();if(seriesKind==="benchmark")makeSeries();
     $("benchmarkCredit").href=m.sourceUrl;$("benchmarkCredit").textContent=m.source+" ↗";
     $("goldLicense").href=m.licenseUrl;
-    $("tradeInfo").textContent="Spot Gold CFD · tick counts · archive ends "+new Date(data.at(-1).time*1000).toISOString().slice(0,16).replace("T"," ")+" UTC";
+    $("goldMonthOpen").textContent=goldMonth?"History: "+goldMonth:"Gold history";
+    $("tradeInfo").textContent="Spot Gold CFD · tick counts · archive: Jan 2021–Oct 2026";
     nativeControls(true);$("alertOpen").disabled=true;applySettings();updateChart(null);
-    chart.timeScale().setVisibleLogicalRange({from:data.length-100,to:data.length+5});
-    setLiveStatus("archive");message("");notify("Imported 1m OHLC candles · historical only");renderObjects();
-  }catch{if(ticket===seq){message("Gold 1-minute history unavailable. Try Refresh or switch to 5m–4h for indicative quotes.");notify("Chart data unavailable")}}
-  finally{if(ticket===seq)busy=false}
+    chart.timeScale().setVisibleLogicalRange({from:Math.max(0,data.length-100),to:data.length+5});
+    setLiveStatus("archive");message("");notify("1m OHLC candles · historical only");renderObjects();return true;
+  }catch{
+    if(ticket===seq){
+      if(keep)notify("That month couldn’t load · keeping the current candles");
+      else{message("Gold archive range unavailable. Try Gold history → Latest archive bars, or Refresh.");notify("Chart data unavailable");}
+    }
+    return false;
+  }finally{clearTimeout(timer);if(ticket===seq)busy=false}
 }
-$("benchmarkExport").onclick=()=>{if(goldArchive()&&benchmarkInfo){const u=URL.createObjectURL(new Blob([benchmarkInfo.csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=u;a.download="XAUUSD-1m-Sepaul-Research.csv";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);return}if(!benchmarkMode()||!benchmarkInfo)return;const p=benchmarkInfo,len=p.frame==="month"?7:p.frame==="year"?4:p.intraday?20:10;const text="period,value,unit,source\n"+p.points.map(([t,v])=>[new Date(t*1000).toISOString().slice(0,len),v,p.info.unit,p.source].join(",")).join("\n")+"\n";const u=URL.createObjectURL(new Blob([text],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=u;a.download=symbol+"-"+p.frame+"-ledger.csv";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
+$("benchmarkExport").onclick=()=>{if(goldArchive()&&benchmarkInfo){const u=URL.createObjectURL(new Blob([replayData?"time,open,high,low,close,tick_volume\n"+data.map(a=>[new Date(a.time*1000).toISOString(),a.open,a.high,a.low,a.close,a.volume].join(",")).join("\n")+"\n":benchmarkInfo.csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=u;a.download="XAUUSD-1m-"+(goldMonth?goldMonth+"-":"")+(replayData?"replay-":"")+"Sepaul-Research.csv";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);return}if(!benchmarkMode()||!benchmarkInfo)return;const p=benchmarkInfo,len=p.frame==="month"?7:p.frame==="year"?4:p.intraday?20:10;const text="period,value,unit,source\n"+p.points.map(([t,v])=>[new Date(t*1000).toISOString().slice(0,len),v,p.info.unit,p.source].join(",")).join("\n")+"\n";const u=URL.createObjectURL(new Blob([text],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=u;a.download=symbol+"-"+p.frame+"-ledger.csv";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
 q("[data-bf]").forEach(b=>b.onclick=()=>{if(!benchmarkMode()&&!goldArchive())return;barHover=null;pinnedBar=null;setReplayPicking(false);const wasArchive=goldArchive();benchmarkFrame=b.dataset.bf;if(wasArchive!==goldArchive())select(symbol);else if(benchmarkMode())loadBenchmark()});
 async function loadImported(){const ticket=++seq;controller?.abort();stopLive();stopPlayback();clearTimeout(historyTimer);busy=false;historyBusy=false;historyEnded=true;hasHistory=false;nextBefore=null;replayData=null;
 try{await getLibrary();if(ticket!==seq||!usingImport())return;startChart();if(seriesKind==="benchmark")makeSeries();applySettings();data=imported.bars.map(x=>({...x}));loadedKey="csv:"+key();nativeControls(true);$("pair").textContent=symbol+" · Imported";$("source").textContent=imported.name;$("tradeInfo").textContent="Historical data only";$("alertOpen").disabled=true;setLiveStatus("imported");updateChart(null);chart.timeScale().setVisibleLogicalRange({from:Math.max(0,data.length-100),to:data.length+5});message("");notify("Local CSV · not a live feed");renderObjects()}catch{if(ticket===seq)message("Could not start the Ledger chart engine.")}}
