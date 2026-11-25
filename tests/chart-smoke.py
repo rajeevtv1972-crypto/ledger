@@ -1,5 +1,7 @@
 from playwright.sync_api import sync_playwright, expect
 import os
+import json
+from pathlib import Path
 import time
 base=os.getenv("LEDGER_TEST_URL","http://127.0.0.1:8765").rstrip("/")
 def bars(end,n=230,step=3600,mid=100):
@@ -46,7 +48,34 @@ with sync_playwright() as w:
  p.mouse.move(area["x"]+200,area["y"]+150);p.mouse.down();p.mouse.move(area["x"]+240,area["y"]+195,steps=5);p.mouse.up()
  assert drawings()[0]["a"]!=first,drawings()
  p.locator("#undo").click();assert drawings()[0]["a"]==first
+ p.locator("[data-tool=trend]").click()
+ p.mouse.click(area["x"]+200,area["y"]+150)
+ p.keyboard.down("Shift");p.mouse.click(area["x"]+350,area["y"]+168);p.keyboard.up("Shift")
+ assert drawings()[-1]["a"]["price"]==drawings()[-1]["b"]["price"]
+ p.locator("[data-tool=rectangle]").click()
+ p.mouse.click(area["x"]+400,area["y"]+140);p.mouse.click(area["x"]+520,area["y"]+200)
+ p.locator("[data-tool=edit]").click()
+ p.mouse.dblclick(area["x"]+460,area["y"]+170)
+ expect(p.locator("#boxDialog")).to_be_visible()
+ p.locator("#boxText").fill("4H FVG")
+ p.locator("#boxFill").fill("#22aa55")
+ p.locator("#boxOpacity").fill("35")
+ p.locator("#boxSave").click()
+ assert drawings()[-1]["text"]=="4H FVG" and drawings()[-1]["fill"]=="#22aa55" and drawings()[-1]["mid"]
+ box=drawings()[-1]
+ p.mouse.move(area["x"]+460,area["y"]+170);p.mouse.down();p.mouse.move(area["x"]+480,area["y"]+178,steps=4);p.mouse.up()
+ assert drawings()[-1]["a"]!=box["a"]
+
  p.reload();expect(p.locator("#source")).to_contain_text("Fixture exchange");assert drawings()[0]["a"]==first
+ monthly=json.loads((Path(__file__).parent/"../assets/data/pink-sheet-monthly.json").read_text())
+ refresh_count=[]
+ def monthly_fixture(route):
+  refresh_count.append(1)
+  body=monthly
+  if len(refresh_count)>1:
+   body={"months":[*monthly["months"],"2026-11"],"prices":{k:[*v,v[-1]+1] for k,v in monthly["prices"].items()}}
+  route.fulfill(json=body)
+ p.route("**/api/commodity-monthly",monthly_fixture)
  p.goto(base+"/chart.html?symbol=XAUUSD")
  expect(p.locator("body")).to_have_class("benchmark-mode")
  expect(p.locator("#benchmarkCredit")).to_contain_text("World Bank")
@@ -55,6 +84,11 @@ with sync_playwright() as w:
  with p.expect_download() as f: p.locator("#benchmarkExport").click()
  assert f.value.suggested_filename=="XAUUSD-month-ledger.csv"
  with open(f.value.path()) as csv: assert len(csv.readlines())==803
+ p.locator("#refresh").click()
+ expect(p.locator("#historyInfo")).to_contain_text("803 observations")
+ expect(p.locator("#tradeInfo")).to_contain_text("2026-11")
+ expect(p.locator("#intradayChart")).to_be_visible()
+
  p.locator('[data-bf="year"]').click()
  expect(p.locator("#source")).to_have_text("Annual · USD/troy oz")
  expect(p.locator("#historyInfo")).to_contain_text("67 observations")
@@ -120,4 +154,5 @@ with sync_playwright() as w:
  p.set_viewport_size({"width":390,"height":844});p.goto(base+"/chart.html")
  expect(p.locator("#chart canvas").first).to_be_visible()
  assert p.evaluate("document.documentElement.scrollWidth <= innerWidth")
+ p.close()
  print("Browser passed: homepage launch, WebSocket, REST history, RSI, replay, native comparison, channel and anchor editing, commodity benchmarks, full date coverage, fallback, CSV, outage state, mobile layout.")

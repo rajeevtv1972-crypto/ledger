@@ -18,10 +18,10 @@ export async function onRequestGet({request}) {
   if(!Object.hasOwn(series,symbol)) return Response.json({error:"Daily energy symbol unavailable."},{status:400});
   const key = series[symbol];
   try {
-    const upstream = await fetch("https://fred.stlouisfed.org/graph/fredgraph.csv?id="+key,{signal:AbortSignal.timeout(9000),cf:{cacheEverything:true,cacheTtl:3600}});
+    const upstream = await fetch("https://fred.stlouisfed.org/graph/fredgraph.csv?id="+key,{signal:AbortSignal.timeout(9000),cf:{cacheEverything:true,cacheTtl:300}});
     if(!upstream.ok) throw Error("Upstream unavailable");
     const points = parseEiaCsv(await upstream.text(),key);
-    return Response.json({points},{headers:{"cache-control":"public, max-age=900, stale-while-revalidate=3600","x-content-type-options":"nosniff"}});
+    return Response.json({points,checkedAt:new Date().toISOString()},{headers:{"cache-control":"public, max-age=300","x-content-type-options":"nosniff"}});
   } catch {
     return Response.json({error:"EIA data through FRED unavailable."},{status:502,headers:{"cache-control":"no-store"}});
   }

@@ -27,22 +27,23 @@ export function aggregateBenchmarks(points,frame){
   }
   return [...groups].map(([t,[sum,n]])=>[t,sum/n]);
 }
-async function getJson(url,signal){
-  const r=await fetch(url,{signal});
+async function getJson(url,signal,fresh=false){
+  const r=await fetch(url,{signal,cache:fresh?"no-store":"default"});
   if(!r.ok)throw Error("Benchmark data unavailable");
   return r.json();
 }
 let pink;
-export async function loadBenchmarkSeries(symbol,frame,signal){
+let pinkChecked=0;
+export async function loadBenchmarkSeries(symbol,frame,signal,{refresh=false}={}){
   if(!Object.hasOwn(instruments,symbol)||!periods(instruments[symbol]).includes(frame))throw Error("This period is unavailable");
   const info=instruments[symbol], daily=frame==="day"||frame==="week";
-  let points, source="World Bank Pink Sheet", url=pinkUrl, snapshot=false;
+  let checkedAt=null, points, source="World Bank Pink Sheet", url=pinkUrl, snapshot=false;
   if(daily){
     source="U.S. EIA via FRED";url="https://fred.stlouisfed.org/series/"+info.daily;
     try{
-      const result=await getJson("/api/commodity-history?symbol="+symbol,AbortSignal.any([signal,AbortSignal.timeout(8000)]));
+      const result=await getJson("/api/commodity-history?symbol="+symbol,AbortSignal.any([signal,AbortSignal.timeout(13000)]),refresh);
       if(!Array.isArray(result.points)||result.points.length<1000)throw Error("Unexpected daily history");
-      points=result.points;
+      points=result.points;checkedAt=result.checkedAt||null;
     }catch(e){
       if(signal.aborted)throw e;
       const d=await getJson("/assets/data/eia-"+symbol+".json",signal);
@@ -50,9 +51,19 @@ export async function loadBenchmarkSeries(symbol,frame,signal){
       snapshot=true;
     }
   }else{
-    const d=pink??await getJson("/assets/data/pink-sheet-monthly.json",signal);
-    pink=d;points=d.prices[symbol].flatMap((value,i)=>Number.isFinite(value)?[[Date.parse(d.months[i]+"-01T00:00:00Z")/1000,value]]:[]);
+    let d=pink;
+    if(refresh||!d||Date.now()-pinkChecked>900000){
+      try{
+        const latest=await getJson("/api/commodity-monthly",AbortSignal.any([signal,AbortSignal.timeout(24000)]),refresh);
+        if(!Array.isArray(latest.months)||latest.months.length<700||!Array.isArray(latest.prices?.[symbol])||latest.prices[symbol].length!==latest.months.length)throw Error("Incomplete monthly history");
+        if(d&&latest.months.at(-1)<d.months.at(-1))throw Error("Monthly source returned older data");
+        d=pink=latest;pinkChecked=Date.now();
+      }catch(e){if(signal.aborted)throw e;snapshot=true}
+    }
+    if(!d)d=await getJson("/assets/data/pink-sheet-monthly.json",signal);
+    checkedAt=d.checkedAt||null;
+    points=d.prices[symbol].flatMap((value,i)=>Number.isFinite(value)?[[Date.parse(d.months[i]+"-01T00:00:00Z")/1000,value]]:[]);
   }
   if(!points.length)throw Error("No observations available");
-  return {frame,info,source,url,snapshot,latestTime:points.at(-1)[0],points:aggregateBenchmarks(points,frame)};
+  return {frame,info,source,url,snapshot,checkedAt,latestTime:points.at(-1)[0],points:aggregateBenchmarks(points,frame)};
 }
