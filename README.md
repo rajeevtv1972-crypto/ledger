@@ -105,3 +105,7 @@ Gold opens in **Live sampled**, a separate 15-minute chart built from XAUS indic
 ### Long / Short position drawings
 
 Pick **Long position** or **Short position** and click the entry once. Ledger starts with a 2:1 reward-to-risk ratio. Drag the selected zone to move it, the top/bottom level handles to change take profit or stop loss, and the right entry handle to extend its duration. Use **Position settings** (or double-click the drawing on a desktop) for exact prices and an optional risk-based estimate in base units. These are planning drawings, not orders; the estimate doesn't model leverage, fees or broker lots.
+
+### Commodity refresh and chart branding
+
+Silver and platinum have separate indicative **Spot quotes** modes that sample about every 30 seconds when visible, from Gold API. Session quotes are not OHLC and are not joined to the World Bank benchmarks. The EIA/FRED daily and weekly charts check for new releases every two minutes; World Bank views check every five minutes. The check time is shown separately from the latest observation date. The native chart and comparison pane use no third-party logo; the renderer's attribution and link are in the page footer.

@@ -1,6 +1,6 @@
 import {parseWorkbook,workbookUrl} from "../_lib/pink-sheet.js";
 const SOURCE="https://www.worldbank.org/en/research/commodity-markets";
-const init={cf:{cacheEverything:true,cacheTtl:900}};
+const init={cf:{cacheEverything:true,cacheTtl:300}};
 export async function onRequestGet({request,waitUntil}){
  let stage="cache",upstreamStatus=null;
  try{
@@ -21,7 +21,7 @@ export async function onRequestGet({request,waitUntil}){
   const buffer=await xlsx.arrayBuffer();
   if(buffer.byteLength>5e6)throw Error("Workbook too large");
   stage="parse";
-  const data=await parseWorkbook(buffer), result=Response.json({...data,checkedAt:new Date().toISOString()},{headers:{"cache-control":"public, max-age=900","x-content-type-options":"nosniff"}});
+  const data=await parseWorkbook(buffer), result=Response.json({...data,checkedAt:new Date().toISOString()},{headers:{"cache-control":"public, max-age=300","x-content-type-options":"nosniff"}});
   if(cache&&waitUntil)waitUntil(cache.put(key,result.clone()).catch(()=>{}));
   return result;
  }catch{return Response.json({error:"World Bank benchmark source temporarily unavailable.",stage,upstreamStatus},{status:502,headers:{"cache-control":"no-store"}})}
