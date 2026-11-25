@@ -1,6 +1,7 @@
+import {goldFrames,goldSamples} from "./gold-samples.js";
 export const pinkUrl="https://www.worldbank.org/en/research/commodity-markets";
 export const instruments=Object.freeze({
-  XAUUSD:{name:"Gold benchmark",unit:"USD/troy oz"},
+  XAUUSD:{name:"Gold benchmark",unit:"USD/troy oz",intraday:true},
   XAGUSD:{name:"Silver benchmark",unit:"USD/troy oz"},
   PLATINUM:{name:"Platinum benchmark",unit:"USD/troy oz"},
   COPPER:{name:"Copper benchmark",unit:"USD/metric ton"},
@@ -16,8 +17,8 @@ export const instruments=Object.freeze({
   NICKEL:{name:"Nickel benchmark",unit:"USD/metric ton"},
   ZINC:{name:"Zinc benchmark",unit:"USD/metric ton"}
 });
-export const frames = Object.freeze({day:"Daily",week:"Weekly",month:"Monthly",year:"Annual"});
-export function periods(instrument){return instrument.daily?["day","week","month","year"]:["month","year"]}
+export const frames = Object.freeze({"5m":"5 min","15m":"15 min","30m":"30 min","1h":"1 hour","4h":"4 hour",day:"Daily",week:"Weekly",month:"Monthly",year:"Annual"});
+export function periods(instrument){return instrument.intraday?["15m","5m","30m","1h","4h","month","year"]:instrument.daily?["day","week","month","year"]:["month","year"]}
 export function aggregateBenchmarks(points,frame){
   if(frame==="day"||frame==="month") return points;
   const groups = new Map();
@@ -37,6 +38,10 @@ let pinkChecked=0;
 export async function loadBenchmarkSeries(symbol,frame,signal,{refresh=false}={}){
   if(!Object.hasOwn(instruments,symbol)||!periods(instruments[symbol]).includes(frame))throw Error("This period is unavailable");
   const info=instruments[symbol], daily=frame==="day"||frame==="week";
+  if(info.intraday&&Object.hasOwn(goldFrames,frame)){
+    const p=await goldSamples(frame,signal);
+    return {...p,frame,intraday:true,source:"XAUS spot samples",url:"https://xaus.com/api/",info:{...info,name:"Gold spot · XAU/USD"}};
+  }
   let checkedAt=null, points, source="World Bank Pink Sheet", url=pinkUrl, snapshot=false;
   if(daily){
     source="U.S. EIA via FRED";url="https://fred.stlouisfed.org/series/"+info.daily;

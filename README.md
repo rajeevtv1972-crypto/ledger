@@ -22,6 +22,8 @@ Sources: [U.S. EIA reuse policy](https://www.eia.gov/about/copyrights_reuse.php)
 
 The chart toolbar’s star adds the current market to Favorites, including commodities. Search (Ctrl/⌘+K) also lists recently opened markets and supports arrow keys and Enter. The browser remembers the split layout; Share generates a link to chart settings and markets only, excluding local or imported data.
 
-Ledger checks the latest World Bank workbook on load and through Refresh. A chart left open checks for a new publication periodically; if the publisher is unavailable, Ledger labels the saved fallback. These are published benchmarks, not intraday prices; Ledger does not show intraday commodity quotes without an imported data file.
+Ledger checks the latest World Bank workbook on load and through Refresh. A chart left open checks for a new publication periodically; if the publisher is unavailable, Ledger labels the saved fallback. These are published benchmarks, not intraday prices; Gold intraday shows indicative spot samples, not tradable quotes or exchange candles.
 
 Tap or click a box to select it, then use Edit text, Move / resize, or Delete above the chart. Drag any corner to resize in move mode. Undo restores a deleted box. Hold Shift while placing a line endpoint to snap it horizontal or vertical.
+
+Gold (XAU/USD) opens in 15m mode by default. Ledger uses the [XAUS public Gold spot sampler](https://xaus.com/api/) for 5m, 15m, 30m, 1h and 4h views, holding the last observation per UTC period for up to 48 hours of available history. It checks at five-minute intervals, labels stale samples, and does not infer candles, gaps, or trading volume. Longer 1M and 1Y views keep the World Bank benchmark; broker-supplied XAU/USD candles can be imported via CSV. No embed is used.
