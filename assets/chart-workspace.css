@@ -21,3 +21,12 @@
  .sideTabs button{min-height:40px}
  .replayBar button,.replayBar select{min-height:38px}
 }
+
+/* A single symbol picker and predictable toolbar placement leave more room for candles. */
+.top .search{display:none}
+.top .brand{white-space:nowrap}
+.tools button svg{display:block;margin:auto;pointer-events:none}
+@media(min-width:1200px){
+ .top{gap:4px}
+ .top :is(button,select){padding-inline:6px}
+}
