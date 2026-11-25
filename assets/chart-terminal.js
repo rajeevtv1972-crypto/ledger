@@ -700,7 +700,7 @@ q("[data-bf]").forEach(b=>b.onclick=()=>{
  if(fromArchive&&Object.hasOwn(goldMinutes,b.dataset.bf)){benchmarkFrame=b.dataset.bf;loadGoldArchive();return}
  select(symbol,b.dataset.bf);
 });
-let goldSpotRaw=null,goldSpotPoints=[],goldQuote=null,goldSpotRequest=0;
+let goldSpotRaw=null,goldSpotPoints=[],goldQuote=null,goldSpotRequest=0,goldBackfillRequest=0;
 async function loadGoldLive(manual=false){
  if(!goldLiveMode()||busy)return;
  const already=loadedKey==="spot-candles:XAUUSD",now=Date.now();
@@ -721,11 +721,18 @@ async function loadGoldLive(manual=false){
    setLiveStatus("connecting");details();historyLabel();message("Loading sampled Gold candles…");
  }
  busy=true;
- const get=async(url)=>{const r=await fetch(url,{signal});if(!r.ok)throw Error("Spot source unavailable");return r.json()};
+ const get=async(url,cache="default")=>{const r=await fetch(url,{signal,cache});if(!r.ok)throw Error("Spot source unavailable");return r.json()};
+ const backfill=async()=>{
+   if(goldSpotRaw&&now-goldBackfillRequest<300000)return;
+   goldBackfillRequest=now;
+   const raw=await get("/api/gold-intraday").catch(()=>null);
+   if(ticket===seq&&raw?.points?.length)goldSpotRaw=raw;
+ };
+ const seed=backfill();
  try{
-   const [[raw,spot],m]=await Promise.all([
-     Promise.all([get("/api/gold-intraday").catch(()=>null),get("/api/gold-spot").catch(()=>null)]),
-     import("/assets/gold-live.js"),getLibrary()
+   const [spot,m]=await Promise.all([
+     get("/api/gold-spot","no-cache").catch(()=>null),
+     import("/assets/gold-live.js"),getLibrary(),already?null:seed
    ]);
    if(ticket!==seq||!goldLiveMode())return;
    const t=Math.floor(Date.now()/1000),q=spot?.quote;
@@ -735,7 +742,6 @@ async function loadGoldLive(manual=false){
      if(q.t!==goldSpotPoints.at(-1)?.t)goldSpotPoints.push(q);
    }
    goldSpotPoints=goldSpotPoints.filter(x=>x.t>t-48*3600);
-   if(raw?.points?.length)goldSpotRaw=raw;
    const bars=m.sampleBars(goldSpotRaw,goldSpotPoints,t);
    if(bars.length<2)throw Error("Not enough fresh observations");
    const changed=!already||bars.length!==data.length||bars.some((x,i)=>["time","open","high","low","close","samples"].some(k=>x[k]!==data[i]?.[k]));

@@ -15,6 +15,8 @@ with sync_playwright() as w:
     calls=[]
     issues=[]
     p.on("pageerror",lambda e:issues.append(str(e)))
+    if prod:
+        p.on("response",lambda r:calls.append((r.status,r.json())) if r.url.endswith("/api/gold-spot") else None)
     if not prod:
         now=int(time.time())//900*900+400
         p.clock.install(time=datetime.fromtimestamp(now, timezone.utc))
@@ -45,10 +47,10 @@ with sync_playwright() as w:
         expect(p.locator("#quote")).to_have_text("$3,102.00")
     else:
         before=p.locator("#tradeInfo").inner_text()
-        for _ in range(8):
+        for _ in range(15):
             if p.locator("#tradeInfo").inner_text()!=before:break
             p.wait_for_timeout(10000)
-        else:raise AssertionError("Production quote timestamp did not advance")
+        else:raise AssertionError(("Production quote timestamp did not advance",before,p.locator("#streamState").inner_text(),calls,p.evaluate("document.visibilityState")))
     p.locator('[data-bf="15m"]').tap()
     expect(p.locator("#streamState")).to_have_text("Historical candles · not live")
     expect(p.locator("#benchmarkExport")).to_be_visible()

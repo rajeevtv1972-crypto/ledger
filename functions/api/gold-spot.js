@@ -2,7 +2,7 @@ import {spotQuote} from "../../assets/gold-live.js";
 const upstream="https://xaus.com/api/v1/spot?compact=1";
 export async function onRequestGet(){
   try{
-    const r=await fetch(upstream,{signal:AbortSignal.timeout(5500),headers:{Accept:"application/json"},cf:{cacheEverything:true,cacheTtlByStatus:{"200-299":60,"400-599":0}}});
+    const r=await fetch(upstream,{signal:AbortSignal.timeout(5500),headers:{Accept:"application/json"}});
     if(!r.ok)throw Error("Source unavailable");
     const quote=spotQuote(await r.json());
     // The timestamp remains available so that browsers can detect stale caches.
