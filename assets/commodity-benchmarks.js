@@ -1,4 +1,4 @@
-import {goldFrames,goldSamples} from "./gold-samples.js";
+import {goldFrames,goldSamples} from "./gold-samples.js?v=2";
 export const pinkUrl="https://www.worldbank.org/en/research/commodity-markets";
 export const instruments=Object.freeze({
   XAUUSD:{name:"Gold benchmark",unit:"USD/troy oz",intraday:true},

@@ -1,5 +1,5 @@
 export const goldFrames=Object.freeze({"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400});
-const endpoint="https://xaus.com/api/v1/intraday?symbol=xau&hours=48";
+const endpoints=["/api/gold-intraday","https://xaus.com/api/v1/intraday?symbol=xau&hours=48"];
 export function groupGold(raw,frame,now=Date.now()/1000){
   const step=goldFrames[frame];
   if(!Object.hasOwn(goldFrames,frame)||raw?.symbol!=="xau"||raw.currency!=="USD"||raw.unit!=="troy_oz"||raw.interval_seconds!==300||!Array.isArray(raw.points)||raw.points.length>800)throw Error("Unrecognized Gold sample data");
@@ -14,10 +14,15 @@ export function groupGold(raw,frame,now=Date.now()/1000){
 let cache,checked=0;
 export async function goldSamples(frame,signal){
   if(!cache||Date.now()-checked>=60000){
-    const r=await fetch(endpoint,{signal:AbortSignal.any([signal,AbortSignal.timeout(12000)])});
-    if(!r.ok)throw Error("Gold feed unavailable");
-    const raw=await r.json(),data=groupGold(raw,frame);
-    cache=raw;checked=Date.now();return data;
+    for(const endpoint of endpoints){
+      try{
+        const r=await fetch(endpoint,{signal:AbortSignal.any([signal,AbortSignal.timeout(18000)])});
+        if(!r.ok)throw Error("Gold feed unavailable");
+        const raw=await r.json(),data=groupGold(raw,frame);
+        cache=raw;checked=Date.now();return data;
+      }catch(e){if(signal.aborted)throw e}
+    }
+    throw Error("Gold feed unavailable");
   }
   return groupGold(cache,frame);
 }

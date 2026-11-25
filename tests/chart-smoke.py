@@ -93,7 +93,7 @@ with sync_playwright() as w:
  def gold_fixture(route):
   end=int(time.time())//300*300
   route.fulfill(json={"symbol":"xau","currency":"USD","unit":"troy_oz","interval_seconds":300,"data_state":{"status":"fresh"},"points":[{"t":end-(79-i)*300,"p":3500+i/3} for i in range(80)]})
- p.route("https://xaus.com/api/v1/intraday?*",gold_fixture)
+ p.route("**/api/gold-intraday",gold_fixture)
  p.goto(base+"/chart.html?symbol=XAUUSD")
  expect(p.locator("#source")).to_have_text("15 min · USD/troy oz")
  expect(p.locator("#benchmarkCredit")).to_contain_text("XAUS")
