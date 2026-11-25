@@ -97,3 +97,7 @@ with `LEDGER_GOLD_ZIP=ZIP node --test tests/gold-archive.test.js`.
   the requested date. The page limits how many bars it keeps loaded at once.
 - The Markets page links directly to all available benchmark charts.
   Stocks, indices and unlicensed futures still need an OHLCV CSV.
+
+### Current Gold spot samples
+
+Gold opens in **Live sampled**, a separate 15-minute chart built from XAUS indicative XAU/USD observations. It starts with up to 48 hours of 5-minute samples, then checks the source about every 60 seconds while the tab is visible. Counts refer to observations, not volume. Missing or single-sample periods are not filled. Its extremes are sampled highs/lows, not broker OHLC or executable prices. The archive, benchmark, and spot line remain separate. This feed has no alerts or CSV export.
