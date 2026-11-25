@@ -78,6 +78,48 @@ with sync_playwright() as w:
  assert drawings()[-1]["type"]=="trend"
  p.locator("#undo").click()
  assert drawings()[-1]["text"]=="Updated FVG"
+ p.locator('[data-tool="text"]').click()
+ p.mouse.click(area["x"]+480,area["y"]+178)
+ expect(p.locator("#boxText")).to_have_value("Updated FVG")
+ p.locator("#boxText").fill("Label from Text tool")
+ p.locator("#boxSave").click()
+ assert drawings()[-1]["text"]=="Label from Text tool"
+ p.locator("#drawingColorOpen").click()
+ expect(p.locator("#drawingColorLabel")).to_have_text("Border color")
+ p.locator("#drawingColor").fill("#6644ff")
+ p.locator("#drawingColorForm button[type=submit]").click()
+ assert drawings()[-1]["color"]=="#6644ff"
+ p.locator('[data-tool="text"]').click()
+ p.mouse.click(area["x"]+550,area["y"]+255)
+ expect(p.locator("#drawingTextDialog")).to_be_visible()
+ p.locator("#drawingText").fill("My chart note")
+ p.locator("#drawingText").press("Enter")
+ assert drawings()[-1]["text"]=="My chart note"
+ p.locator("#boxDismiss").click()
+ p.mouse.click(area["x"]+575,area["y"]+250)
+ expect(p.locator("#boxEditText")).to_have_text("Edit text")
+ p.locator("#boxEditText").click()
+ expect(p.locator("#drawingText")).to_have_value("My chart note")
+ p.locator("#drawingText").fill("Edited chart note")
+ p.locator("#drawingText").press("Enter")
+ assert drawings()[-1]["text"]=="Edited chart note"
+ p.locator("#boxDelete").click()
+ assert drawings()[-1]["type"]=="rectangle"
+
+ p.locator('[data-tool="horizontal"]').click()
+ p.mouse.click(area["x"]+550,area["y"]+290)
+ p.mouse.click(area["x"]+630,area["y"]+290)
+ expect(p.locator("#drawingColorOpen")).to_be_visible()
+ p.locator("#drawingColorOpen").click()
+ expect(p.locator("#drawingColorLabel")).to_have_text("Line color")
+ p.locator("#drawingColor").fill("#ff4400")
+ p.locator("#drawingColorForm button[type=submit]").click()
+ assert drawings()[-1]["color"]=="#ff4400"
+ p.locator("#boxDelete").click()
+ assert drawings()[-1]["type"]=="rectangle"
+ p.locator("#undo").click()
+ assert drawings()[-1]["type"]=="horizontal"
+
 
 
  p.reload();expect(p.locator("#source")).to_contain_text("Fixture exchange");assert drawings()[0]["a"]==first
@@ -233,5 +275,18 @@ with sync_playwright() as w:
  touch.locator("#boxDelete").tap()
  expect(touch.locator("#boxActions")).to_be_hidden()
  assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).BTC.length")==0
+ touch.goto(base+"/chart.html?symbol=XAUUSD&period=1m")
+ expect(touch.locator("#streamState")).to_have_text("Historical candles · not live")
+ expect(touch.get_by_role("button",name="Text",exact=True)).to_be_visible()
+ touch.locator('[data-tool="horizontal"]').tap()
+ r=touch.locator("#draw").bounding_box()
+ touch.touchscreen.tap(r["x"]+100,r["y"]+240)
+ touch.touchscreen.tap(r["x"]+185,r["y"]+240)
+ touch.locator("#drawingColorOpen").tap()
+ touch.locator("#drawingColor").fill("#aa22ee")
+ touch.get_by_role("button",name="Save color").tap()
+ assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).XAUUSD[0].color")== "#aa22ee"
+ touch.locator("#boxDelete").tap()
+ expect(touch.locator("#boxActions")).to_be_hidden()
  touch.close()
  print("Browser passed: homepage launch, WebSocket, REST history, RSI, replay, native comparison, channel and anchor editing, commodity benchmarks, full date coverage, fallback, CSV, outage state, mobile layout.")
