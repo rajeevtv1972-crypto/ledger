@@ -109,3 +109,7 @@ Pick **Long position** or **Short position** and click the entry once. Ledger st
 ### Commodity refresh and chart branding
 
 Silver and platinum have separate indicative **Spot quotes** modes that sample about every 30 seconds when visible, from Gold API. Session quotes are not OHLC and are not joined to the World Bank benchmarks. The EIA/FRED daily and weekly charts check for new releases every two minutes; World Bank views check every five minutes. The check time is shown separately from the latest observation date. The native chart and comparison pane use no third-party logo; the renderer's attribution and link are in the page footer.
+
+### Gold OHLC
+
+Gold opens in the **Gold OHLC** view, a rolling window of indicative XAU/USD OTC mid-price candles from [biquote](https://biquote.io/docs/). Supported intervals: 1m, 5m, 15m, 30m, 1h, 4h, and 1D. Ledger requests updates about every ten seconds when the chart is visible and the feed is active. A provider timestamp, forming-candle status and stale/closed indicators distinguish new from retained data. Tick count is not exchange volume. Provider data may differ from another broker's quotes, and the publisher may use its disclosed backfill sources. The browser retrieves data directly from the provider; Ledger does not re-serve or export the raw series. Archive and XAUS spot samples remain separate.
