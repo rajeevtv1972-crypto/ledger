@@ -30,6 +30,6 @@ export async function readGoldFeed(minutes,{signal,full}){
   if(!r.ok)throw Error("Gold provider unavailable");
   return r.json();
  };
- const [candles,tick]=await Promise.allSettled([get("/api/XAUUSD/ohlc?"+new URLSearchParams({interval,limit:full?String(maxBars):"12"})),get("/api/XAUUSD")]);
- return {bars:candles.status==="fulfilled"?normalizeBars(candles.value,minutes):null,quote:tick.status==="fulfilled"?normalizeQuote(tick.value):null};
+ const [candles,tick]=await Promise.allSettled([get("/api/XAUUSD/ohlc?"+new URLSearchParams({interval,limit:full?String(maxBars):"12"})).then(p=>normalizeBars(p,minutes)),get("/api/XAUUSD")]);
+ return {bars:candles.status==="fulfilled"?candles.value:null,quote:tick.status==="fulfilled"?normalizeQuote(tick.value):null};
 }

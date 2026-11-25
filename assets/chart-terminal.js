@@ -143,7 +143,7 @@ function showUnavailable(){
 }
 
 // Exchange-matched streaming. REST is the authoritative history and reconciliation feed.
-function setLiveStatus(state){liveState=state;const e=$("streamState");if(!e)return;if(e.dataset.state===state)return;e.dataset.state=state;const labels={live:"LIVE · WebSocket",connecting:"Connecting…",goldFeed:"Updating · Gold OHLC",goldClosed:"Market closed · last candle",goldFeedStale:"Feed stale · last candles",polling:"REST · 3s fallback",idle:"Not streaming",benchmark:"Historical · not live",sampled:"Indicative · sampled",sampleStale:"Older samples · not live",goldLive:"Updating · sampled spot",goldLate:"No fresh spot quote",archive:"Historical candles · not live",dateHistory:"Historical view · not live",replay:"Replay · not live",imported:"CSV · not live"};e.textContent=labels[state]||labels.idle;e.title=state==="live"?sourceName+" · trade-driven updates":state==="polling"?"WebSocket unavailable; refreshing public candle endpoint":""}
+function setLiveStatus(state){liveState=state;const e=$("streamState");if(!e)return;if(e.dataset.state===state)return;e.dataset.state=state;const labels={live:"LIVE · WebSocket",connecting:"Connecting…",goldFeed:"Updating · Gold OHLC",goldQuoteOnly:"Quote updating · candles delayed",goldClosed:"Market closed · last candle",goldFeedStale:"Feed stale · last candles",polling:"REST · 3s fallback",idle:"Not streaming",benchmark:"Historical · not live",sampled:"Indicative · sampled",sampleStale:"Older samples · not live",goldLive:"Updating · sampled spot",goldLate:"No fresh spot quote",archive:"Historical candles · not live",dateHistory:"Historical view · not live",replay:"Replay · not live",imported:"CSV · not live"};e.textContent=labels[state]||labels.idle;e.title=state==="live"?sourceName+" · trade-driven updates":state==="polling"?"WebSocket unavailable; refreshing public candle endpoint":""}
 function stopLive(){liveGeneration++;lastStatsPaint=-Infinity;clearTimeout(liveRetry);liveRetry=null;if(liveFrame)cancelAnimationFrame(liveFrame);liveFrame=0;liveDirty=false;lastRenderedTime=0;const ws=liveSocket;liveSocket=null;if(ws){ws.onopen=ws.onmessage=ws.onclose=ws.onerror=null;try{ws.close()}catch{}}liveKey="";$("tradeInfo").textContent="";lastTradeAt=0;lastSocketMessage=0;liveTradeCount=0;liveSeen.clear();tradeBuffer=[];syncInProgress=false;setLiveStatus("idle")}
 function wsConfig(){const product=symbol+"-USD",pair=symbol+"/USD",channel="live_trades_"+symbol.toLowerCase()+"usd";if(provider==="bitstamp")return {url:"wss://ws.bitstamp.net",subscribe:{event:"bts:subscribe",data:{channel}},decode:m=>m.event==="trade"&&m.channel===channel?[{p:Number(m.data.price),q:Number(m.data.amount),t:Number(m.data.microtimestamp)/1e6||Number(m.data.timestamp),id:String(m.data.id)}]:[]};if(provider==="coinbase")return {url:"wss://ws-feed.exchange.coinbase.com",subscribe:{type:"subscribe",product_ids:[product],channels:["matches","heartbeat"]},decode:m=>m.type==="match"&&m.product_id===product?[{p:Number(m.price),q:Number(m.size),t:Date.parse(m.time)/1000,id:String(m.trade_id)}]:[]};if(provider==="kraken")return {url:"wss://ws.kraken.com/v2",subscribe:{method:"subscribe",params:{channel:"trade",symbol:[pair],snapshot:false}},decode:m=>m.channel==="trade"&&m.type==="update"?(m.data||[]).filter(x=>x.symbol===pair).map(x=>({p:Number(x.price),q:Number(x.qty),t:Date.parse(x.timestamp)/1000,id:String(x.trade_id)})):[]};return null}
 function startLive(){if(historyView||benchmarkMode()||usingImport()||csvOnlyMarket()||replayData||!data.length||loadedKey!==key())return;const k=key()+":"+provider;if(liveKey===k&&(liveSocket||liveRetry))return;if(liveKey!==k)stopLive();const conf=wsConfig();if(!conf||typeof WebSocket==="undefined"){setLiveStatus("polling");return}liveKey=k;const gen=++liveGeneration;setLiveStatus("connecting");let ws;try{ws=new WebSocket(conf.url)}catch{setLiveStatus("polling");scheduleLive(k,gen);return}liveSocket=ws;lastSocketMessage=Date.now();const timeout=setTimeout(()=>{if(gen===liveGeneration&&liveState!=="live"){try{ws.close()}catch{}setLiveStatus("polling")}},10000);
@@ -983,12 +983,24 @@ async function loadGoldFeed(manual=false){
   if(full)goldFeedBackfill=now;
   const resp=await m.readGoldFeed(frame,{signal,full});
   if(ticket!==seq||!goldFeedMode()||frame!==interval||replayData)return;
+  const before=liveState;
+  const currentQuote=resp.quote&&resp.quote.time>=(goldFeedQuote?.time||0)?resp.quote:null;
+  if(currentQuote){
+   goldFeedQuote=currentQuote;
+   $("quote").textContent="$"+price(currentQuote.price);
+  }
+  const state=currentQuote?.state,updated=goldFeedQuote?" · "+(state==="updating"?"Quote ":"Last quote ")+istTime(goldFeedQuote.time,true)+" IST":"";
   const valid=resp.bars?.length&&(!keep||resp.bars.at(-1).time>=data.at(-1).time);
-  if(!valid)throw Error("Candles were unavailable or older than the current window");
+  if(!valid){
+   setLiveStatus(state==="updating"?"goldQuoteOnly":keep&&state==="closed"?"goldClosed":"goldFeedStale");
+   $("tradeInfo").textContent=(keep?"Showing last loaded candles":"Candles unavailable")+updated+" · Indicative broker feed";
+   if(!keep)message("Gold candles unavailable. Ledger will retry, or you can switch to Archive or Live sampled.");
+   if(manual||before!==liveState)notify(state==="updating"?"Gold quote is updating · candle feed unavailable":"Gold candle update unavailable");
+   return;
+  }
   const bars=m.mergeFeedBars(keep?data:[],resp.bars);
   const had=keep?data:null;
   const changed=!had||had.length!==bars.length||bars.some((x,i)=>["time","open","high","low","close","volume","forming"].some(k=>x[k]!==had[i]?.[k]));
-  if(resp.quote&&resp.quote.time>=(goldFeedQuote?.time||0))goldFeedQuote=resp.quote;
   if(!keep){
    benchmarkInfo={feed:true};loadedKey=key;
    const url=new URL(location.href);url.searchParams.set("period","feed");url.searchParams.set("interval",String(frame));history.replaceState(null,"",url);
@@ -1002,7 +1014,6 @@ async function loadGoldFeed(manual=false){
    data=bars;barHover=null;pinnedBar=null;updateChart(range?{from:range.from+shift,to:range.to+shift}:null);
    if(!range)ts.setVisibleLogicalRange({from:Math.max(0,data.length-100),to:data.length+5});
   }else if(goldFeedQuote)$("quote").textContent="$"+price(goldFeedQuote.price);
-  const state=resp.quote?.state,updated=goldFeedQuote?" · Quote "+istTime(goldFeedQuote.time,true)+" IST":"";
   $("tradeInfo").textContent=(bars.at(-1).forming&&state==="updating"?"Current candle forming":"Latest candle "+chartTime(bars.at(-1).time))+updated+" · Indicative broker feed";
   setLiveStatus(state==="updating"?"goldFeed":state==="closed"?"goldClosed":"goldFeedStale");
   message("");if(manual||!keep)notify("Gold OHLC · biquote OTC mid-price");

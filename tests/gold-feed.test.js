@@ -24,3 +24,14 @@ test("uses public provider directly without credentials or export proxy",async(t
  assert.equal(r.bars.length,1);assert.equal(r.quote.state,"updating");
  assert.ok(fetch.mock.calls.every(({arguments:[u,o]})=>String(u).startsWith("https://biquote.io/")&&o.credentials==="omit"));
 });
+test("empty or failed candles preserve a fresh quote",async(t)=>{
+ const now=Math.floor(Date.now()/1000);
+ let fail=false;
+ t.mock.method(globalThis,"fetch",async url=>String(url).includes("/ohlc")?
+ (fail?Response.json({}, {status:502}):Response.json({symbol:"XAUUSD",interval:"1m",bars:[]})):
+ Response.json({symbol:"XAUUSD",mid:3505,lastQuoteAt:stamp(now),marketState:"open",stale:false}));
+ for(fail of [false,true]){
+  const r=await readGoldFeed(1,{signal:new AbortController().signal,full:true});
+  assert.equal(r.bars,null);assert.equal(r.quote?.price,3505);assert.equal(r.quote?.state,"updating");
+ }
+});

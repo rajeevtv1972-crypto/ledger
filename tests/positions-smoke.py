@@ -29,7 +29,7 @@ with sync_playwright() as w:
         p.route_web_socket("wss://ws.bitstamp.net/",lambda s:None)
         p.goto(base+("/chart" if prod else "/chart.html")+"?symbol=BTC&interval=60",wait_until="domcontentloaded")
         expect(p.locator("#source")).to_contain_text("Position fixture")
-        expect(p.locator('script[src*="chart-terminal.js?v=30"]')).to_have_count(1)
+        expect(p.locator('script[src*="chart-terminal.js?v=31"]')).to_have_count(1)
         x,y=inside(p)
         input_at=p.touchscreen.tap if mobile else p.mouse.click
         p.get_by_role("button",name="Long position",exact=True).click();input_at(x,y)
