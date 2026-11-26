@@ -57,7 +57,9 @@ with sync_playwright() as w:
  p.locator("[data-tool=channel]").click()
  area=p.locator("#draw").bounding_box()
  for x,y in [(200,150),(300,175),(250,220)]: p.mouse.click(area["x"]+x,area["y"]+y)
- drawings=lambda: p.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')||'{}').BTC || []")
+ def drawings():
+  p.evaluate('navigator.locks?.request("ledger_chart_drawings_v2",()=>0)')
+  return  p.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v2')||'{}').BTC || []")
  assert drawings()[0]["type"]=="channel",drawings()
  first=drawings()[0]["a"]
  p.locator("[data-tool=edit]").click()
@@ -329,14 +331,17 @@ with sync_playwright() as w:
  touch.locator("#boxSave").tap()
  touch.locator("#drawingColorOpen").tap()
  touch.locator("#drawingFillPresets").get_by_role("button",name="Purple").tap()
- assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).BTC[0].fill")=="#a855f7"
+ touch.evaluate('navigator.locks?.request("ledger_chart_drawings_v2",()=>0)')
+ assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v2')).BTC[0].fill")=="#a855f7"
  touch.get_by_role("button",name="Done").tap()
  touch.locator("#undo").tap()
- assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).BTC[0].fill")!="#a855f7"
+ touch.evaluate('navigator.locks?.request("ledger_chart_drawings_v2",()=>0)')
+ assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v2')).BTC[0].fill")!="#a855f7"
  touch.touchscreen.tap(r["x"]+150,r["y"]+170)
  touch.locator("#boxDelete").tap()
  expect(touch.locator("#boxActions")).to_be_hidden()
- assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).BTC.length")==0
+ touch.evaluate('navigator.locks?.request("ledger_chart_drawings_v2",()=>0)')
+ assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v2')).BTC.length")==0
  touch.goto(base+"/chart.html?symbol=XAUUSD&period=1m")
  expect(touch.locator("#streamState")).to_have_text("Historical candles · not live")
  expect(touch.get_by_role("button",name="Text",exact=True)).to_be_visible()
@@ -347,7 +352,8 @@ with sync_playwright() as w:
  touch.locator("#drawingColorOpen").tap()
  touch.locator("#drawingColor").fill("#aa22ee")
  touch.get_by_role("button",name="Done").tap()
- assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).XAUUSD[0].color")== "#aa22ee"
+ touch.evaluate('navigator.locks?.request("ledger_chart_drawings_v2",()=>0)')
+ assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v2')).XAUUSD[0].color")== "#aa22ee"
  touch.locator("#boxDelete").tap()
  expect(touch.locator("#boxActions")).to_be_hidden()
  expect(touch.locator("#workPanel")).to_be_hidden()
@@ -362,7 +368,8 @@ with sync_playwright() as w:
  touch.locator('[data-tool="horizontal"]').tap()
  touch.touchscreen.tap(r["x"]+70,r["y"]+150)
  touch.touchscreen.tap(r["x"]+95,r["y"]+180)
- assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v1')).XAUUSD.length")==2
+ touch.evaluate('navigator.locks?.request("ledger_chart_drawings_v2",()=>0)')
+ assert touch.evaluate("JSON.parse(localStorage.getItem('ledger_chart_drawings_v2')).XAUUSD.length")==2
  touch.locator('[data-tool="cursor"]').tap()
  touch.touchscreen.tap(r["x"]+130,r["y"]+180)
  expect(touch.locator("#boxMove")).to_be_enabled()

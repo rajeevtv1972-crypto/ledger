@@ -6,7 +6,8 @@ from playwright.sync_api import sync_playwright, expect
 base=os.getenv("LEDGER_TEST_URL","http://127.0.0.1:8765").rstrip("/")
 prod=base.startswith("https://")
 def stored(p):
-    return p.evaluate('JSON.parse(localStorage.getItem("ledger_chart_drawings_v1") || "{}").BTC || []')
+    p.evaluate('navigator.locks?.request("ledger_chart_drawings_v2",()=>0)')
+    return p.evaluate('JSON.parse(localStorage.getItem("ledger_chart_drawings_v2") || "{}").BTC || []')
 def fixture(r):
     end=int(time.time())//3600*3600
     bars=[dict(time=end-(199-j)*3600,open=100+j%20,high=103+j%20,low=97+j%20,close=101+j%20,volume=j) for j in range(200)]
@@ -29,7 +30,7 @@ with sync_playwright() as w:
         p.route_web_socket("wss://ws.bitstamp.net/",lambda s:None)
         p.goto(base+("/chart" if prod else "/chart.html")+"?symbol=BTC&interval=60",wait_until="domcontentloaded")
         expect(p.locator("#source")).to_contain_text("Position fixture")
-        expect(p.locator('script[src*="chart-terminal.js?v=33"]')).to_have_count(1)
+        expect(p.locator('script[src*="chart-terminal.js?v=34"]')).to_have_count(1)
         x,y=inside(p)
         input_at=p.touchscreen.tap if mobile else p.mouse.click
         p.get_by_role("button",name="Long position",exact=True).click();input_at(x,y)

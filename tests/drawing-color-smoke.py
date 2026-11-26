@@ -9,13 +9,15 @@ with sync_playwright() as w:
     browser=w.chromium.launch(**args)
     p=browser.new_page(viewport={"width":390,"height":844},has_touch=True,is_mobile=True,ignore_https_errors=True)
     p.goto(base+("/chart" if prod else "/chart.html")+"?symbol=XAUUSD&period=15m",wait_until="domcontentloaded")
-    expect(p.locator('script[src*="chart-terminal.js?v=33"]')).to_have_count(1)
+    expect(p.locator('script[src*="chart-terminal.js?v=34"]')).to_have_count(1)
     expect(p.locator("#streamState")).to_have_text("Historical candles · not live",timeout=18000)
     p.locator('[data-tool="rectangle"]').tap()
     r=p.locator("#draw").bounding_box()
     p.touchscreen.tap(r["x"]+65,r["y"]+140);p.touchscreen.tap(r["x"]+235,r["y"]+205)
     p.locator("#drawingColorOpen").tap()
-    box=lambda:p.evaluate('JSON.parse(localStorage.getItem("ledger_chart_drawings_v1")).XAUUSD[0]')
+    def box():
+        p.evaluate('navigator.locks?.request("ledger_chart_drawings_v2",()=>0)')
+        return p.evaluate('JSON.parse(localStorage.getItem("ledger_chart_drawings_v2")).XAUUSD[0]')
     before=box()
     rgb="""() => {
      const c=document.querySelector('#draw'),k=devicePixelRatio;

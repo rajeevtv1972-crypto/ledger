@@ -10,7 +10,7 @@ with sync_playwright() as w:
     for touch in (True,False):
         p=b.new_page(viewport={"width":390 if touch else 1280,"height":844},has_touch=touch,is_mobile=touch,ignore_https_errors=True)
         p.goto(base+("/chart" if prod else "/chart.html")+"?symbol=XAUUSD&period=15m",wait_until="domcontentloaded")
-        expect(p.locator('script[src*="chart-terminal.js?v=33"]')).to_have_count(1)
+        expect(p.locator('script[src*="chart-terminal.js?v=34"]')).to_have_count(1)
         expect(p.locator("#streamState")).to_have_text("Historical candles · not live",timeout=18000)
         p.locator('[data-tool="rectangle"]').click()
         r=p.locator("#draw").bounding_box()
@@ -21,7 +21,9 @@ with sync_playwright() as w:
         tap(x+145,y+165)
         expect(p.locator("#boxActions")).to_be_visible()
         expect(p.locator('[data-tool="cursor"]')).to_have_class("active")
-        box=lambda:p.evaluate('JSON.parse(localStorage.getItem("ledger_chart_drawings_v1")).XAUUSD[0]')
+        def box():
+            p.evaluate('navigator.locks?.request("ledger_chart_drawings_v2",()=>0)')
+            return p.evaluate('JSON.parse(localStorage.getItem("ledger_chart_drawings_v2")).XAUUSD[0]')
         old=box()
         tap(x+228,y+208)
         tap(x+260,y+241)

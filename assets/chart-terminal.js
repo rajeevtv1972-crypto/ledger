@@ -39,7 +39,18 @@ let symbol=normalize(new URLSearchParams(location.search).get("symbol")||prefs.s
 let interval=intervals.includes(Number(initialUrl.get("interval")))?Number(initialUrl.get("interval")):intervals.includes(prefs.interval)?prefs.interval:60,
 style=styles.includes(initialUrl.get("style"))?initialUrl.get("style"):symbol==="XAUUSD"?"candles":styles.includes(prefs.style)?prefs.style:"candles";
 let watch=read("ledger_chart_watch_v1",["BTC","ETH","SOL","XRP","ADA","DOGE","LINK","AVAX","XMR","KAS"]);if(!Array.isArray(watch))watch=["BTC","ETH"];
-let all=read("ledger_chart_drawings_v1",{});if(!all||typeof all!=="object"||Array.isArray(all))all={};
+const drawingStore="ledger_chart_drawings_v2",legacyDrawingStore="ledger_chart_drawings_v1";
+const drawingWrites=new Map();
+let drawingBase=[];
+function readDrawingMap(){
+ const raw=localStorage.getItem(drawingStore)??localStorage.getItem(legacyDrawingStore);
+ const value=JSON.parse(raw??"{}");
+ if(!value||typeof value!=="object"||Array.isArray(value))throw Error("Invalid drawing store");
+ return value;
+}
+function storedDrawings(key){
+ try{const list=readDrawingMap()[key];return Array.isArray(list)?list:[]}catch{return []}
+}
 let drawings=[],past=[],future=[],selected=-1,tool="cursor",pending=null,preview=null,hidden=false,magnet=false,log=false,data=[],loadedKey="",seq=0,busy=false,overlays=[],series,chart;
 let L=window.LightweightCharts;const canvas=$("draw"),ctx=canvas.getContext("2d");
 let replayPicking=false,pinnedBar=null,barHover=null,keepDrawing=read("ledger_keep_drawing",false),lockDrawings=read("ledger_lock_drawings",false),dataWindowLines=[];
@@ -169,8 +180,52 @@ if(changed){data=mergeBars(fresh?[]:data,p.candles);if(fresh){updateChart(null);
 if(pendingTrades.length&&liveState==="live"){lastTradeAt=0;for(const t of pendingTrades)if(t.t>=snapshotStart)applyTrade(t,false,t.t<=Date.now()/1000&&candleTime(t.t)<=p.candles.at(-1).time);if(liveDirty&&!liveFrame)liveFrame=requestAnimationFrame(renderLive)}loadedKey=k;message("");$("source").textContent=sourceName+" · USD";lastRestSync=Date.now();nativeControls(true);startLive();if(liveState!=="live"&&!liveSocket)setLiveStatus("polling");if(!liveSocket&&!liveRetry)startLive();if(fresh&&data.length<130&&hasHistory)setTimeout(()=>{if(n===seq)loadOlder(false)},400)}catch(e){if(n!==seq)return;if(!data.length){nativeControls(true);hasHistory=false;historyLabel();setLiveStatus("idle");message("No Ledger candles available for "+symbol+". Retry or import CSV.");notify("Market feed unavailable");return}message("");notify("Refresh unavailable · showing last loaded candles")}finally{clearTimeout(timer);if(n===seq){busy=false;syncInProgress=false;tradeBuffer=[]}}}
 function renderWatch(){const el=$("watch");el.replaceChildren();if(favorites.length){const h=document.createElement("h3");h.textContent="Favorites";el.append(h);for(const s of favorites){const search=$("watchSearch").value.trim().toUpperCase(),x=findSymbol(s);if(search&&!(s+" "+x.n).toUpperCase().includes(search))continue;const row=document.createElement("div"),b=document.createElement("button");row.className="watchrow";b.textContent="★ "+s+" · "+x.n;b.className=s===symbol?"active":"";b.onclick=()=>select(s);row.append(b);el.append(row)}}const filter=$("watchSearch").value.trim().toUpperCase();for(const [title,items] of [["Crypto",watch.filter(s=>valid(s)&&!Object.hasOwn(commodities,s)&&!Object.hasOwn(otherMarkets,s))],["Commodities",Object.keys(commodities)],...["Forex","Indices","Stocks"].map(category=>[category,Object.keys(otherMarkets).filter(s=>otherMarkets[s][1]===category)])]){const h=document.createElement("h3");h.textContent=title;el.append(h);for(const s of items){if(filter&&!(s+" "+(commodities[s]?.[0]||otherMarkets[s]?.[0]||cryptoNames[s]||"")).toUpperCase().includes(filter))continue;const row=document.createElement("div");row.className="watchrow";const a=document.createElement("button");a.textContent=commodities[s]||otherMarkets[s]?s+" · "+(commodities[s]?.[0]||otherMarkets[s][0]):s+"/USD";a.className=s===symbol?"active":"";a.onclick=()=>select(s);row.append(a);if(!commodities[s]&&!otherMarkets[s]){const b=document.createElement("button");b.textContent="×";b.title="Remove from watchlist";b.onclick=()=>{watch=watch.filter(x=>x!==s);save("ledger_chart_watch_v1",watch);renderWatch()};row.append(b)}el.append(row)}}}
 function clone(v){return JSON.parse(JSON.stringify(v))}
-function saveDraw(){all[drawingKey()]=drawings;save("ledger_chart_drawings_v1",all);renderObjects()}
-function changeDraw(fn){boxResizeTap=null;past.push(clone(drawings));future=[];fn();selected=-1;saveDraw()}
+const sameDraw=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+function withDrawingLock(fn){
+ // New tabs serialize read/modify/write. Older scripts still writing v1 cannot overwrite v2.
+ try{return navigator.locks? navigator.locks.request(drawingStore,fn):Promise.resolve(fn())}
+ catch(error){return Promise.reject(error)}
+}
+function syncDrawingList(list){
+ const current=drawings[selected],at=current?list.findIndex(d=>sameDraw(d,current)):-1;
+ drawingBase=list;drawings=clone(list);selected=at;past=[];future=[];boxResizeTap=null;editDrag=null;pending=null;preview=null;thirdPoint=null;
+ for(const id of ["drawingTextDialog","drawingColorDialog","boxDialog","positionDialog"])if($(id).open)$(id).close();
+ renderObjects();
+}
+function syncOtherDrawingTab(){
+ const key=drawingKey();
+ if(drawingWrites.has(key)||editDrag||pending||boxResizeTap||document.querySelector("dialog[open]"))return;
+ const list=storedDrawings(key);if(!sameDraw(list,drawingBase))syncDrawingList(list);
+}
+window.addEventListener("storage",e=>{if(e.key===drawingStore||e.key===null)syncOtherDrawingTab()});
+document.addEventListener("close",syncOtherDrawingTab,true);
+window.addEventListener("focus",syncOtherDrawingTab);
+function saveDraw(append=false){
+ const key=drawingKey(),before=drawingBase,after=clone(drawings);
+ drawingBase=after;drawingWrites.set(key,after);
+ const finish=(latest,message="")=>{
+  if(drawingWrites.get(key)===after){
+   drawingWrites.delete(key);
+   if(key===drawingKey()&&!sameDraw(drawingBase,latest))syncDrawingList(latest);
+  }
+  if(message&&key===drawingKey())notify(message);
+ };
+ withDrawingLock(()=>{
+  const map=readDrawingMap(),now=Array.isArray(map[key])?map[key]:[];
+  let list=after;
+  if(!sameDraw(now,before)){
+   // Independent new drawings can be kept; never replay a stale delete, edit, clear or undo.
+   if(!append||after.length<=before.length||!before.every((d,i)=>sameDraw(d,after[i]))){
+    finish(now,"Drawings changed in another tab · review them and try again");return;
+   }
+   list=[...now,...after.slice(before.length)];
+  }
+  localStorage.setItem(drawingStore,JSON.stringify({...map,[key]:list}));
+  finish(list);
+ }).catch(()=>finish(storedDrawings(key),"Couldn’t save this drawing change · saved drawings were kept"));
+ renderObjects();
+}
+function changeDraw(fn,append=false){boxResizeTap=null;past.push(clone(drawings));future=[];fn();selected=-1;saveDraw(append)}
 const boxColor=(color,fallback)=>/^#[0-9a-f]{6}$/i.test(color||"")?color:fallback;
 function openBox(i){
  const d=drawings[i];if(d?.type!=="rectangle")return;
@@ -189,7 +244,7 @@ $("drawingTextForm").onsubmit=e=>{
  e.preventDefault();const draft=textDraft,text=$("drawingText").value.trim();if(!text){$("drawingText").focus();return}
  if(!draft||draft.key!==drawingKey())return;
  const i=draft.existing?drawings.indexOf(draft.existing):drawings.length;if(i<0)return;
- changeDraw(()=>{if(draft.existing)drawings[i].text=text;else drawings.push({type:"text",a:draft.point,text,color:$("color").value})});
+ changeDraw(()=>{if(draft.existing)drawings[i].text=text;else drawings.push({type:"text",a:draft.point,text,color:$("color").value})},!draft.existing);
  setTool(keepDrawing&&!draft.existing?"text":"cursor");chooseDrawing(i);$("drawingTextDialog").close();notify("Chart text saved");
 };
 const drawingSwatches=[["Green","#22c55e"],["Red","#ef4444"],["Blue","#3b82f6"],["Teal","#14b8a6"],["Amber","#f59e0b"],["Purple","#a855f7"],["Black","#000000"],["White","#ffffff"]];
@@ -351,7 +406,7 @@ function select(s,frame){s=normalize(s);if(!valid(s))return;barHover=null;pinned
   if(benchmarkFrame==="feed"&&!localImport(s)&&(defaultGoldFrame||!goldFeedIntervals.includes(interval)))interval=15;
   if(symbol!==s&&frame===undefined){style="candles";$("style").value=style}
  }
- symbol=s;recents=[s,...recents.filter(x=>x!==s)].slice(0,12);save("ledger_recents_v1",recents);updateStar();$("symbol").value=s;drawings=Array.isArray(all[drawingKey()])?clone(all[drawingKey()]):[];past=[];future=[];selected=-1;setTool("cursor");preferences();const url=new URL(location.href);if(!benchmarkMode()&&!goldArchive()&&!goldLiveMode()&&!goldFeedMode())url.searchParams.delete("period");if(!goldArchive())url.searchParams.delete("month");url.searchParams.set("symbol",s);url.searchParams.delete("engine");history.replaceState(null,"",url);renderWatch();renderObjects();load(true)}
+ symbol=s;recents=[s,...recents.filter(x=>x!==s)].slice(0,12);save("ledger_recents_v1",recents);updateStar();$("symbol").value=s;setTool("cursor");drawingBase=drawingWrites.get(drawingKey())??storedDrawings(drawingKey());drawings=clone(drawingBase);past=[];future=[];selected=-1;preferences();const url=new URL(location.href);if(!benchmarkMode()&&!goldArchive()&&!goldLiveMode()&&!goldFeedMode())url.searchParams.delete("period");if(!goldArchive())url.searchParams.delete("month");url.searchParams.set("symbol",s);url.searchParams.delete("engine");history.replaceState(null,"",url);renderWatch();renderObjects();load(true)}
 function setTool(t){if(t==="edit"&&lockDrawings){notify("Drawing positions are locked");return}if(editDrag){drawings=editDrag.before;editDrag=null}tool=t;pending=null;preview=null;thirdPoint=null;boxResizeTap=null;q("[data-tool]").forEach(b=>b.classList.toggle("active",b.dataset.tool===t));canvas.classList.toggle("armed",t!=="cursor");syncBoxActions();$("hint").textContent=t==="cursor"?"Crosshair":t==="edit"?"Drag a handle to move a drawing or a box corner to resize":t==="text"?"Tap a box to label it, or tap the chart to add a note":t==="long"||t==="short"?"Tap your entry price to place the position":t+" · select point"}
 function resize(){const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;if(canvas.width!==Math.round(r.width*d)||canvas.height!==Math.round(r.height*d)){canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d)}ctx.setTransform(d,0,0,d,0,0);return r}
 function point(e){if(!series||!data.length)return null;const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,ts=chart.timeScale();if(x<0||x>ts.width()||y<0||y>(chart.panes?.()[0]?.getHeight?.()||r.height-25))return null;const ix=ts.coordinateToLogical(x),p=series.coordinateToPrice(y);if(ix==null||p==null||!Number.isFinite(p))return null;const i=Math.round(ix);let a=data[i],time=a?.time??(data[0].time+i*stepSeconds()),value=p;if(magnet&&a)value=[a.open,a.high,a.low,a.close].sort((a,b)=>Math.abs(a-p)-Math.abs(b-p))[0];return {time,price:value}}
@@ -385,7 +440,7 @@ if(highlight||tool==="edit"){if(d.type==="rectangle"&&!lockDrawings){
   ctx.fillRect(p.x-5,p.y-5,10,10);ctx.strokeRect(p.x-5,p.y-5,10,10);
  }
 }else if(d.type!=="rectangle")for(const p of [a,d.b?b:null,d.c?coords(d.c):null].filter(Boolean)){ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fill()}}}
-function paintSignals(){if(benchmarkMode()||!data.length)return;const {fvg,sweep}=overlaySignals;if(!fvg&&!sweep)return;const r=chart.timeScale().getVisibleLogicalRange();if(!r)return;const end=Math.min(data.length,Math.ceil(r.to)+3),start=Math.max(2,Math.floor(r.from)-2,end-750);for(let i=start;i<end;i++){const a=data[i],b=data[i-2];if(fvg&&a.time-b.time===2*stepSeconds()){let low,high,col;if(a.low>b.high){low=b.high;high=a.low;col="#25be95"}else if(a.high<b.low){low=a.high;high=b.low;col="#f06072"}if(low!==undefined){const p=coords({time:b.time,price:low}),z=coords({time:a.time,price:high});if(p&&z){ctx.fillStyle=col;ctx.globalAlpha=.2;ctx.fillRect(p.x,Math.min(p.y,z.y),Math.max(4,z.x-p.x),Math.abs(p.y-z.y));ctx.globalAlpha=1}}}if(sweep&&i>=20){let hi=-Infinity,lo=Infinity;for(let j=i-20;j<i;j++){hi=Math.max(hi,data[j].high);lo=Math.min(lo,data[j].low);}for(const [ok,val,col,label] of [[a.high>hi&&a.close<hi,a.high,"#f06072","▼"],[a.low<lo&&a.close>lo,a.low,"#25be95","▲"]])if(ok){const p=coords({time:a.time,price:val});if(p){ctx.fillStyle=col;ctx.font="12px system-ui";ctx.fillText(label,p.x-5,p.y+(label==="▼"?-7:14))}}}}}
+function paintSignals(){if(benchmarkMode()||!data.length)return;const {fvg,sweep}=overlaySignals;if(!fvg&&!sweep)return;const r=chart.timeScale().getVisibleLogicalRange();if(!r)return;const end=Math.min(data.length,Math.ceil(r.to)+3),start=Math.max(2,Math.floor(r.from)-2,end-750);for(let i=start;i<end;i++){const a=data[i],b=data[i-2];if(fvg&&!a.forming&&!data[i-1].forming&&!b.forming&&a.time-b.time===2*stepSeconds()){let low,high,col;if(a.low>b.high){low=b.high;high=a.low;col="#25be95"}else if(a.high<b.low){low=a.high;high=b.low;col="#f06072"}if(low!==undefined){const p=coords({time:b.time,price:low}),z=coords({time:a.time,price:high});if(p&&z){ctx.fillStyle=col;ctx.globalAlpha=.2;ctx.fillRect(p.x,Math.min(p.y,z.y),Math.max(4,z.x-p.x),Math.abs(p.y-z.y));ctx.globalAlpha=1}}}if(sweep&&i>=20){let hi=-Infinity,lo=Infinity;for(let j=i-20;j<i;j++){hi=Math.max(hi,data[j].high);lo=Math.min(lo,data[j].low);}for(const [ok,val,col,label] of [[a.high>hi&&a.close<hi,a.high,"#f06072","▼"],[a.low<lo&&a.close>lo,a.low,"#25be95","▲"]])if(ok){const p=coords({time:a.time,price:val});if(p){ctx.fillStyle=col;ctx.font="12px system-ui";ctx.fillText(label,p.x-5,p.y+(label==="▼"?-7:14))}}}}}
 function paint(now){
  const active=!document.hidden&&!csvOnlyMarket()&&chart&&series&&!hidden&&data.length&&(drawings.length||pending||overlaySignals.fvg||overlaySignals.sweep);
  if(!active){
@@ -587,7 +642,7 @@ function grabAnchor(e){
  if(!hit){const i=drawingAt(e),start=point(e);if(drawings[i]?.type!=="rectangle"||!start){chooseDrawing(i);return}hit={index:i,field:"body",start}}
  chooseDrawing(hit.index);editDrag={...hit,pointer:e.pointerId,before:clone(drawings),changed:false};canvas.setPointerCapture(e.pointerId)
 }
-canvas.addEventListener("pointerdown",e=>{if(tool==="cursor"||hidden)return;if(tool==="edit"){grabAnchor(e);return}if(tool==="avwap"&&!data.some(bar=>bar.volume>0)){$("hint").textContent="Anchored VWAP requires volume";return}const p=straight(thirdPoint?null:pending,point(e),e.shiftKey,tool);if(!p)return;let d={type:tool,a:pending||p,color:$("color").value};if(isPosition(d)){const pos=newPosition(d);if(!pos){notify("Choose a positive entry price on the chart");return}changeDraw(()=>drawings.push(pos));setTool(keepDrawing?d.type:"cursor");if(!keepDrawing)chooseDrawing(drawings.length-1);notify(positionTitle(d)+" placed · Drag to adjust or open Position settings");return}if(tool==="text"){const i=boxAt(e);setTool("cursor");if(i>=0)openBox(i);else openDrawingText(-1,p);return}if(["horizontal","vertical","hRay","avwap"].includes(tool)){changeDraw(()=>drawings.push(d));setTool(keepDrawing?d.type:"cursor")}else if(!pending){pending=p;$("hint").textContent=tool+" · second point"}else if(["channel","fibExt"].includes(tool)&&!thirdPoint){thirdPoint=p;$("hint").textContent=tool==="channel"?"Select channel width":"Select projection start"}else{d.b=thirdPoint||p;if(thirdPoint)d.c=p;changeDraw(()=>drawings.push(d));setTool(keepDrawing?d.type:"cursor");if(d.type==="rectangle"&&!keepDrawing){chooseDrawing(drawings.length-1);notify("Box selected · drag a corner or tap it, then tap its new location")}}});
+canvas.addEventListener("pointerdown",e=>{if(tool==="cursor"||hidden)return;if(tool==="edit"){grabAnchor(e);return}if(tool==="avwap"&&!data.some(bar=>bar.volume>0)){$("hint").textContent="Anchored VWAP requires volume";return}const p=straight(thirdPoint?null:pending,point(e),e.shiftKey,tool);if(!p)return;let d={type:tool,a:pending||p,color:$("color").value};if(isPosition(d)){const pos=newPosition(d);if(!pos){notify("Choose a positive entry price on the chart");return}changeDraw(()=>drawings.push(pos),true);setTool(keepDrawing?d.type:"cursor");if(!keepDrawing)chooseDrawing(drawings.length-1);notify(positionTitle(d)+" placed · Drag to adjust or open Position settings");return}if(tool==="text"){const i=boxAt(e);setTool("cursor");if(i>=0)openBox(i);else openDrawingText(-1,p);return}if(["horizontal","vertical","hRay","avwap"].includes(tool)){changeDraw(()=>drawings.push(d),true);setTool(keepDrawing?d.type:"cursor")}else if(!pending){pending=p;$("hint").textContent=tool+" · second point"}else if(["channel","fibExt"].includes(tool)&&!thirdPoint){thirdPoint=p;$("hint").textContent=tool==="channel"?"Select channel width":"Select projection start"}else{d.b=thirdPoint||p;if(thirdPoint)d.c=p;changeDraw(()=>drawings.push(d),true);setTool(keepDrawing?d.type:"cursor");if(d.type==="rectangle"&&!keepDrawing){chooseDrawing(drawings.length-1);notify("Box selected · drag a corner or tap it, then tap its new location")}}});
 $("search").onsubmit=e=>{e.preventDefault();select($("symbol").value)};
 $("addwatch").onclick=()=>{if(!Object.hasOwn(commodities,symbol)&&!Object.hasOwn(otherMarkets,symbol)&&!watch.includes(symbol)){watch.push(symbol);save("ledger_chart_watch_v1",watch);renderWatch()}};
 q("[data-i]").forEach(b=>b.onclick=()=>{
@@ -1116,7 +1171,11 @@ $("importOpen").onclick=()=>{$("csvInterval").value=String(interval);$("csvError
 $("csvExit").onclick=()=>{imported=null;$("csvDialog").close();select(symbol)};
 $("csvApply").onclick=async()=>{const file=$("csvFile").files[0],error=$("csvError"),button=$("csvApply"),chosen=symbol,activeFrame=interval,frame=Number($("csvInterval").value);error.textContent="";if(!file||file.size>4*1024*1024){error.textContent="Choose a CSV file up to 4 MB.";return}button.disabled=true;try{const raw=await file.text(),module=await import("/assets/candle-csv.js");const bars=module.parseCandleCsv(raw,MAX_BARS);if(!$("csvDialog").open||chosen!==symbol||activeFrame!==interval||!intervals.includes(frame))return;interval=frame;q("[data-i]").forEach(b=>b.classList.toggle("active",Number(b.dataset.i)===interval));imported={symbol:chosen,interval:frame,name:file.name,bars};$("csvFile").value="";$("csvDialog").close();select(symbol)}catch(e){error.textContent=e.message||"Unable to read this file."}finally{button.disabled=false}};
 
-$("themeToggle").onclick=()=>{settings.theme=settings.theme==="light"?"dark":"light";save("ledger_chart_settings_v2",settings);applySettings();if(comparison!=="single")renderComparison()};select(symbol);requestAnimationFrame(paint);
+$("themeToggle").onclick=()=>{settings.theme=settings.theme==="light"?"dark":"light";save("ledger_chart_settings_v2",settings);applySettings();if(comparison!=="single")renderComparison()};select(symbol);
+withDrawingLock(()=>{
+ if(localStorage.getItem(drawingStore)===null)localStorage.setItem(drawingStore,JSON.stringify(readDrawingMap()));
+}).catch(()=>notify("Drawing storage is unavailable · existing saved data was not changed"));
+requestAnimationFrame(paint);
 setInterval(()=>{if(document.hidden||historyView||benchmarkMode()||usingImport()||csvOnlyMarket()||replayData||!data.length)return;if(liveState==="live"&&Date.now()-lastSocketMessage>45000){stopLive();startLive()}if(liveState!=="live"&&Date.now()-lastRestSync>=3000&&!busy&&!historyBusy)load();else if(liveState==="live"&&Date.now()-lastRestSync>=60000&&!busy&&!historyBusy)load();},1000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!historyView&&!benchmarkMode()&&!usingImport()&&!csvOnlyMarket()&&!replayData){if(Date.now()-lastRestSync>5000)load();else startLive()}});
 const benchmarkCadence=()=>metalSpot()?30000:goldIntraday()?300000:fxBenchmarks.has(symbol)?900000:["USOIL","UKOIL","NATGAS"].includes(symbol)&&["day","week"].includes(benchmarkFrame)?120000:300000;
