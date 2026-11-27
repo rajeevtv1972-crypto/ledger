@@ -170,11 +170,13 @@ async function loadMarketData(showStatus=true){
     if(!response.ok)throw new Error("Market API returned "+response.status);
     const payload=await response.json();
     if(!Array.isArray(payload.data)||!payload.data.length)throw new Error(payload.error||"No market data returned");
-    coinData.clear();
+    const next=new Map();
     payload.data.forEach(row=>{
-      if(COINS[row.symbol]&&Number.isFinite(Number(row.lastPrice)))coinData.set(row.symbol,row);
+      if(row&&Object.hasOwn(COINS,row.symbol)&&Number.isFinite(Number(row.lastPrice))&&Number(row.lastPrice)>0)next.set(row.symbol,row);
     });
-    if(!coinData.size)throw new Error("No supported assets were returned");
+    if(!next.size)throw new Error("No supported assets were returned");
+    coinData.clear();
+    next.forEach((row,symbol)=>coinData.set(symbol,row));
     renderMarkets();
     lastSnapshotAt=Number(payload.updatedAt)||Date.now();
     $("marketDataStatus").textContent="Source: CoinLore • "+coinData.size+" assets • auto-refresh every 30 seconds";

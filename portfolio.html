@@ -52,7 +52,7 @@ button,input,select{font:inherit}button{cursor:pointer}
   </section>
 
   <section class="grid">
-    <div class="card"><div class="label">Portfolio value</div><div class="value" id="portfolioValue">$0.00</div><div class="sub">Live market value</div></div>
+    <div class="card"><div class="label">Portfolio value</div><div class="value" id="portfolioValue">$0.00</div><div class="sub" id="portfolioValueSub">Live market value</div></div>
     <div class="card"><div class="label">Total invested</div><div class="value" id="investedValue">$0.00</div><div class="sub">Based on your entries</div></div>
     <div class="card"><div class="label">Profit / Loss</div><div class="value" id="pnlValue">—</div><div class="sub" id="pnlSub">Add a holding to begin</div></div>
     <div class="card"><div class="label">Holdings</div><div class="value" id="holdingCount">0</div><div class="sub" id="updatedAt">Waiting for live prices…</div></div>
@@ -103,6 +103,7 @@ let holdings=loadHoldings();
 let prices={};
 let lastUpdated=null;
 let refreshInFlight=false;
+let refreshQueued=false, freshPriceIds=new Set(), priceRefreshFailed=false;
 let selectedAsset=null;
 let assetSearchTimer=null;
 let assetSearchController=null;
@@ -209,14 +210,19 @@ async function searchAssets(query){
 function render(){
   const body=document.getElementById("holdingsBody"), empty=document.getElementById("emptyState");
   const invested=holdings.reduce((sum,h)=>sum+h.amount*h.buyPrice,0);
-  const current=holdings.reduce((sum,h)=>sum+h.amount*(prices[h.id]?.usd||0),0);
-  const pnl=current-invested;
-  document.getElementById("portfolioValue").textContent=money(current);
+  const missing=holdings.filter(h=>!prices[h.id]).length;
+  const stale=holdings.some(h=>!freshPriceIds.has(h.id))||priceRefreshFailed;
+  const current=missing?null:holdings.reduce((sum,h)=>sum+h.amount*(prices[h.id]?.usd||0),0);
+  const pnl=current===null?null:current-invested;
+  document.getElementById("portfolioValue").textContent=current===null?"—":money(current);
+  document.getElementById("portfolioValueSub").textContent=missing
+    ? "Waiting for "+missing+" of "+holdings.length+" holding prices"
+    : holdings.length&&stale ? "Includes last available prices" : "Live market value";
   document.getElementById("investedValue").textContent=money(invested);
   document.getElementById("holdingCount").textContent=String(holdings.length);
-  document.getElementById("pnlValue").textContent=holdings.length?money(pnl):"—";
+  document.getElementById("pnlValue").textContent=holdings.length&&pnl!==null?money(pnl):"—";
   document.getElementById("pnlValue").className="value "+(pnl>0?"positive":pnl<0?"negative":"");
-  document.getElementById("pnlSub").textContent=holdings.length?(invested?((pnl/invested)*100).toFixed(2)+"% return":"No cost basis"):"Add a holding to begin";
+  document.getElementById("pnlSub").textContent=holdings.length?(pnl===null?"Unavailable until all holdings are priced":invested?((pnl/invested)*100).toFixed(2)+"% return":"No cost basis"):"Add a holding to begin";
   document.getElementById("updatedAt").textContent=lastUpdated?"Updated "+lastUpdated.toLocaleTimeString():"Prices not loaded yet";
 
   if(!holdings.length){body.innerHTML="";empty.style.display="block";return}
@@ -229,16 +235,16 @@ function render(){
     const rowPnl=price==null?null:value-investedRow;
     const rowPct=investedRow?((rowPnl/investedRow)*100):0;
     return '<tr><td><a style="color:inherit;text-decoration:none" href="/chart.html?symbol='+encodeURIComponent(meta.symbol)+'" title="Open chart"><div class="asset"><div class="coin">'+meta.symbol.slice(0,3)+'</div><div><div class="asset-name">'+meta.name+' ↗</div><div class="asset-symbol">'+meta.symbol+'</div></div></div></a></td>'+
-      '<td>'+num(h.amount,8)+'</td><td>'+money(h.buyPrice)+'</td><td>'+(price==null?'<span class="muted">Loading…</span>':money(price))+'</td>'+
+      '<td>'+num(h.amount,8)+'</td><td>'+money(h.buyPrice)+'</td><td>'+(price==null?'<span class="muted">—</span>':money(price)+(!freshPriceIds.has(h.id)||priceRefreshFailed?' <span class="muted">(last)</span>':""))+'</td>'+
       '<td>'+(price==null?'<span class="muted">—</span>':money(value))+'</td>'+
       '<td>'+(rowPnl==null?'<span class="muted">—</span>':'<span class="'+(rowPnl>0?"positive":rowPnl<0?"negative":"")+'">'+money(rowPnl)+' ('+rowPct.toFixed(2)+'%)</span>')+
       '</td><td><button class="secondary remove" data-index="'+i+'" style="padding:8px 10px">Remove</button></td></tr>'
   }).join("");
-  document.querySelectorAll(".remove").forEach(btn=>btn.addEventListener("click",()=>{holdings.splice(Number(btn.dataset.index),1);saveAndRender();toast("Holding removed.")}));
+  document.querySelectorAll(".remove").forEach(btn=>btn.addEventListener("click",()=>{holdings.splice(Number(btn.dataset.index),1);saveAndRender();toast("Holding removed.");refreshPrices()}));
 }
 
 async function refreshPrices(){
-  if(refreshInFlight)return;
+  if(refreshInFlight){refreshQueued=true;return}
   if(!holdings.length){
     document.getElementById("priceStatus").textContent="Add a holding to load prices";
     return;
@@ -247,7 +253,8 @@ async function refreshPrices(){
   refreshInFlight=true;
   document.getElementById("priceStatus").textContent="Loading CoinLore prices…";
   try{
-    const ids=[...new Set(holdings.map(h=>h.id))].join(",");
+    const requestedIds=new Set(holdings.map(h=>h.id));
+    const ids=[...requestedIds].join(",");
     const response=await fetch("/api/prices?ids="+encodeURIComponent(ids)+"&ts="+Date.now(),{
       cache:"no-store",
       headers:{accept:"application/json"}
@@ -257,19 +264,29 @@ async function refreshPrices(){
     const data=await response.json();
     if(!data||data.error||!Object.keys(data).length)throw new Error(data?.error||"No prices returned");
 
-    prices={...prices,...data};
+    const received=Object.entries(data).filter(([id,value])=>requestedIds.has(id)&&Number.isFinite(value?.usd)&&value.usd>0);
+    if(!received.length)throw new Error("No valid prices returned");
+    prices={...prices,...Object.fromEntries(received)};
+    freshPriceIds=new Set(received.map(([id])=>id));
+    priceRefreshFailed=false;
     lastUpdated=new Date();
-    document.getElementById("priceStatus").textContent=
-      "CoinLore prices • Updated "+lastUpdated.toLocaleTimeString();
+    const priced=holdings.filter(h=>freshPriceIds.has(h.id)).length;
+    document.getElementById("priceStatus").textContent=holdings.length
+      ? "CoinLore prices • Updated "+lastUpdated.toLocaleTimeString()+
+        (priced<holdings.length?" • Fresh quotes for "+priced+" of "+holdings.length+" holdings":"")
+      : "Add a holding to load prices";
     render();
   }catch(error){
     console.error("Ledger portfolio price refresh failed:",error);
     document.getElementById("priceStatus").textContent=lastUpdated
       ?"Refresh failed • Showing last prices from "+lastUpdated.toLocaleTimeString()
       :"Price service unavailable • Retrying…";
+    priceRefreshFailed=true;
+    render();
     if(!lastUpdated)toast("Could not load market prices right now.",true);
   }finally{
     refreshInFlight=false;
+    if(refreshQueued){refreshQueued=false;refreshPrices()}
   }
 }
 
