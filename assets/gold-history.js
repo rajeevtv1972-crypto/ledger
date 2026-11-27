@@ -11,18 +11,42 @@ const valid = month => /^\d{4}-(0[1-9]|1[0-2])$/.test(month) && month >= firstGo
 const decompress = async (data, format) => new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream(format))).arrayBuffer());
 
 async function readRange(fetcher, start, end, signal) {
-  const urls = [upstream, "/api/gold-history-range?start=" + start + "&end=" + end];
-  for (const url of urls) {
-    try {
-      const r = await fetcher(url, {headers:{Range:"bytes=" + start + "-" + end},signal});
-      // Never stream the full archive if a host ignores Range.
-      if (r.status !== 206) { await r.body?.cancel(); throw Error("Range unavailable"); }
-      const bytes = new Uint8Array(await r.arrayBuffer());
-      if (bytes.length !== end-start+1) throw Error("Unexpected Gold range");
-      return bytes;
-    } catch (error) { if (signal?.aborted) throw error; }
+  signal?.throwIfAborted();
+  const request = new AbortController();
+  const combined = signal ? AbortSignal.any([signal, request.signal]) : request.signal;
+  const read = async url => {
+    combined.throwIfAborted();
+    const r = await fetcher(url, {headers:{Range:"bytes=" + start + "-" + end},signal:combined});
+    // Never stream the full archive if a host ignores Range.
+    if (r.status !== 206) { await r.body?.cancel(); throw Error("Range unavailable"); }
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    if (bytes.length !== end-start+1) throw Error("Unexpected Gold range");
+    return bytes;
+  };
+  let startBackup, timer, started = false;
+  const backup = new Promise(resolve => {
+    startBackup = () => {
+      if(started)return;
+      started = true;
+      clearTimeout(timer);
+      resolve(read("/api/gold-history-range?start=" + start + "&end=" + end));
+    };
+    timer = setTimeout(startBackup, 8000);
+  });
+  try {
+    // A stalled direct connection must not use up the entire shared budget before
+    // the existing same-origin fallback gets a turn. Keep the direct request alive.
+    const primary = read(upstream).catch(error => { startBackup(); throw error; });
+    return await Promise.any([primary, backup]);
+  } catch (error) {
+    signal?.throwIfAborted();
+    throw Error("The archive provider did not return the requested range.", {cause:error});
+  } finally {
+    clearTimeout(timer);
+    // Stop the slower request and suppress accidental fallback after primary success.
+    started = true;
+    request.abort();
   }
-  throw Error("The archive provider did not return the requested range.");
 }
 
 const reverse = (v, count) => {

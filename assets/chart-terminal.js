@@ -986,12 +986,12 @@ async function loadGoldArchive(requested=goldMonth,dateTarget=null){
     const [m,c]=await Promise.all([import("/assets/gold-minute.js"),import("/assets/gold-candles.js"),getLibrary()]);
     let archive,dateBar=null;
     if(dateTarget!==null){
-      const found=await (await import("/assets/gold-history.js?v=2")).loadGoldDate(dateTarget,ctrl.signal);
+      const found=await (await import("/assets/gold-history.js?v=3")).loadGoldDate(dateTarget,ctrl.signal);
       if(ticket!==seq||!goldArchive())return false;
       if(!found){notify("No Gold candles on "+istDate(dateTarget)+" IST · kept current chart");return false}
       archive=found.archive;dateBar=found.first;requested=archive.month;
     }else{
-      archive=overview?await c.loadGoldOverview(ctrl.signal):requested?await (await import("/assets/gold-history.js?v=2")).loadGoldMonth(requested,ctrl.signal):await m.loadGoldMinute(ctrl.signal);
+      archive=overview?await c.loadGoldOverview(ctrl.signal):requested?await (await import("/assets/gold-history.js?v=3")).loadGoldMonth(requested,ctrl.signal):await m.loadGoldMinute(ctrl.signal);
       if(ticket!==seq||!goldArchive())return false;
     }
     if(!overview)goldMonth=requested;benchmarkInfo=archive;data=c.aggregateGold(archive.bars,minutes);loadedKey=archiveKey;

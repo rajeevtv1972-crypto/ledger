@@ -9,7 +9,7 @@ with sync_playwright() as w:
     browser=w.chromium.launch(**args)
     p=browser.new_page(viewport={"width":390,"height":844},has_touch=True,is_mobile=True,ignore_https_errors=True)
     p.goto(base+("/chart" if prod else "/chart.html")+"?symbol=XAUUSD&period=15m",wait_until="domcontentloaded")
-    expect(p.locator('script[src*="chart-terminal.js?v=35"]')).to_have_count(1)
+    expect(p.locator('script[src*="chart-terminal.js?v=36"]')).to_have_count(1)
     expect(p.locator("#streamState")).to_have_text("Historical candles · not live",timeout=18000)
     p.locator('[data-tool="rectangle"]').tap()
     r=p.locator("#draw").bounding_box()

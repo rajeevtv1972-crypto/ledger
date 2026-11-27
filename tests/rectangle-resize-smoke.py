@@ -10,7 +10,7 @@ with sync_playwright() as w:
     for touch in (True,False):
         p=b.new_page(viewport={"width":390 if touch else 1280,"height":844},has_touch=touch,is_mobile=touch,ignore_https_errors=True)
         p.goto(base+("/chart" if prod else "/chart.html")+"?symbol=XAUUSD&period=15m",wait_until="domcontentloaded")
-        expect(p.locator('script[src*="chart-terminal.js?v=35"]')).to_have_count(1)
+        expect(p.locator('script[src*="chart-terminal.js?v=36"]')).to_have_count(1)
         expect(p.locator("#streamState")).to_have_text("Historical candles · not live",timeout=18000)
         p.locator('[data-tool="rectangle"]').click()
         r=p.locator("#draw").bounding_box()
