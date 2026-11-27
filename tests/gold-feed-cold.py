@@ -41,6 +41,7 @@ with sync_playwright() as w:
     browser = w.chromium.launch(**opts)
     p,held,errors = new_page(browser,hold_module=True)
     module = wait_for_route(p,held["module"])
+    p.wait_for_function("Boolean(window.LightweightCharts?.createChart)",timeout=15000)
     p.clock.fast_forward(6000)
     assert not held["bars"] and not held["quote"]
     module.continue_()
