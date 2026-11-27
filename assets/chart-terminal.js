@@ -154,7 +154,7 @@ function showUnavailable(){
 }
 
 // Exchange-matched streaming. REST is the authoritative history and reconciliation feed.
-function setLiveStatus(state){liveState=state;const e=$("streamState");if(!e)return;if(e.dataset.state===state)return;e.dataset.state=state;const labels={live:"LIVE · WebSocket",connecting:"Connecting…",goldFeed:"Updating · Gold OHLC",goldQuoteOnly:"Quote updating · candles delayed",goldClosed:"Market closed · last candle",goldFeedStale:"Feed stale · last candles",polling:"REST · 3s fallback",idle:"Not streaming",benchmark:"Historical · not live",sampled:"Indicative · sampled",sampleStale:"Older samples · not live",goldLive:"Updating · sampled spot",goldLate:"No fresh spot quote",archive:"Historical candles · not live",dateHistory:"Historical view · not live",replay:"Replay · not live",imported:"CSV · not live"};e.textContent=labels[state]||labels.idle;e.title=state==="live"?sourceName+" · trade-driven updates":state==="polling"?"WebSocket unavailable; refreshing public candle endpoint":""}
+function setLiveStatus(state){liveState=state;const e=$("streamState");if(!e)return;if(e.dataset.state===state)return;e.dataset.state=state;const labels={live:"LIVE · WebSocket",connecting:"Connecting…",goldFeed:"Updating · Gold OHLC",goldQuoteOnly:"Quote updating · candles delayed",goldQuoteLoading:"Quote updating · loading candles",goldCheckingQuote:"Candles loaded · checking quote",goldClosed:"Market closed · last candle",goldFeedStale:"Feed stale · last candles",polling:"REST · 3s fallback",idle:"Not streaming",benchmark:"Historical · not live",sampled:"Indicative · sampled",sampleStale:"Older samples · not live",goldLive:"Updating · sampled spot",goldLate:"No fresh spot quote",archive:"Historical candles · not live",dateHistory:"Historical view · not live",replay:"Replay · not live",imported:"CSV · not live"};e.textContent=labels[state]||labels.idle;e.title=state==="live"?sourceName+" · trade-driven updates":state==="polling"?"WebSocket unavailable; refreshing public candle endpoint":""}
 function stopLive(){liveGeneration++;lastStatsPaint=-Infinity;clearTimeout(liveRetry);liveRetry=null;if(liveFrame)cancelAnimationFrame(liveFrame);liveFrame=0;liveDirty=false;lastRenderedTime=0;const ws=liveSocket;liveSocket=null;if(ws){ws.onopen=ws.onmessage=ws.onclose=ws.onerror=null;try{ws.close()}catch{}}liveKey="";$("tradeInfo").textContent="";lastTradeAt=0;lastSocketMessage=0;liveTradeCount=0;liveSeen.clear();tradeBuffer=[];syncInProgress=false;setLiveStatus("idle")}
 function wsConfig(){const product=symbol+"-USD",pair=symbol+"/USD",channel="live_trades_"+symbol.toLowerCase()+"usd";if(provider==="bitstamp")return {url:"wss://ws.bitstamp.net",subscribe:{event:"bts:subscribe",data:{channel}},decode:m=>m.event==="trade"&&m.channel===channel?[{p:Number(m.data.price),q:Number(m.data.amount),t:Number(m.data.microtimestamp)/1e6||Number(m.data.timestamp),id:String(m.data.id)}]:[]};if(provider==="coinbase")return {url:"wss://ws-feed.exchange.coinbase.com",subscribe:{type:"subscribe",product_ids:[product],channels:["matches","heartbeat"]},decode:m=>m.type==="match"&&m.product_id===product?[{p:Number(m.price),q:Number(m.size),t:Date.parse(m.time)/1000,id:String(m.trade_id)}]:[]};if(provider==="kraken")return {url:"wss://ws.kraken.com/v2",subscribe:{method:"subscribe",params:{channel:"trade",symbol:[pair],snapshot:false}},decode:m=>m.channel==="trade"&&m.type==="update"?(m.data||[]).filter(x=>x.symbol===pair).map(x=>({p:Number(x.price),q:Number(x.qty),t:Date.parse(x.timestamp)/1000,id:String(x.trade_id)})):[]};return null}
 function startLive(){if(historyView||benchmarkMode()||usingImport()||csvOnlyMarket()||replayData||!data.length||loadedKey!==key())return;const k=key()+":"+provider;if(liveKey===k&&(liveSocket||liveRetry))return;if(liveKey!==k)stopLive();const conf=wsConfig();if(!conf||typeof WebSocket==="undefined"){setLiveStatus("polling");return}liveKey=k;const gen=++liveGeneration;setLiveStatus("connecting");let ws;try{ws=new WebSocket(conf.url)}catch{setLiveStatus("polling");scheduleLive(k,gen);return}liveSocket=ws;lastSocketMessage=Date.now();const timeout=setTimeout(()=>{if(gen===liveGeneration&&liveState!=="live"){try{ws.close()}catch{}setLiveStatus("polling")}},10000);
@@ -1024,14 +1024,14 @@ q("[data-bf]").forEach(b=>b.onclick=()=>{
  select(symbol,b.dataset.bf);
 });
 let goldFeedQuote=null,goldFeedChecked=0,goldFeedBackfill=0,goldFeedLoad;
-const getGoldFeed=()=>goldFeedLoad??=import("/assets/gold-feed.js").catch(e=>{goldFeedLoad=null;throw e});
+const getGoldFeed=()=>goldFeedLoad??=import("/assets/gold-feed.js?v=2").catch(e=>{goldFeedLoad=null;throw e});
 async function loadGoldFeed(manual=false){
  if(!goldFeedMode()||busy||replayData)return;
  const frame=interval,key="gold-feed:"+frame,keep=loadedKey===key&&data.length>0;
  const now=Date.now();if(keep&&now-goldFeedChecked<9500){if(manual)notify("Gold refreshes about every 10 seconds");return}
  goldFeedChecked=now;
  const ticket=++seq;controller?.abort();controller=new AbortController();
- const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(8500)]);
+ const ctrl=controller,isCurrent=()=>ticket===seq&&goldFeedMode()&&frame===interval&&!replayData&&!ctrl.signal.aborted;
  if(!keep){
   stopLive();goldFeedQuote=null;data=[];benchmarkInfo=null;if(series)series.setData([]);
   historyBusy=hasHistory=false;historyEnded=true;nextBefore=null;
@@ -1043,45 +1043,63 @@ async function loadGoldFeed(manual=false){
  busy=true;
  try{
   const [m]=await Promise.all([getGoldFeed(),getLibrary()]);
-  const full=!keep||(now-goldFeedBackfill>60000&&now/1000-data.at(-1).time>frame*60*10&&goldFeedQuote?.state!=="closed");
-  if(full)goldFeedBackfill=now;
-  const resp=await m.readGoldFeed(frame,{signal,full});
-  if(ticket!==seq||!goldFeedMode()||frame!==interval||replayData)return;
-  const before=liveState;
-  const currentQuote=resp.quote&&resp.quote.time>=(goldFeedQuote?.time||0)?resp.quote:null;
-  if(currentQuote){
-   goldFeedQuote=currentQuote;
-   $("quote").textContent="$"+price(currentQuote.price);
-  }
-  const state=currentQuote?.state,updated=goldFeedQuote?" · "+(state==="updating"?"Quote ":"Last quote ")+istTime(goldFeedQuote.time,true)+" IST":"";
-  const valid=resp.bars?.length&&(!keep||resp.bars.at(-1).time>=data.at(-1).time);
-  if(!valid){
-   setLiveStatus(state==="updating"?"goldQuoteOnly":keep&&state==="closed"?"goldClosed":"goldFeedStale");
-   $("tradeInfo").textContent=(keep?"Showing last loaded candles":"Candles unavailable")+updated+" · Indicative broker feed";
-   if(!keep)message("Gold candles unavailable. Ledger will retry, or you can switch to Archive or Live sampled.");
-   if(manual||before!==liveState)notify(state==="updating"?"Gold quote is updating · candle feed unavailable":"Gold candle update unavailable");
-   return;
-  }
-  const bars=m.mergeFeedBars(keep?data:[],resp.bars);
-  const had=keep?data:null;
-  const changed=!had||had.length!==bars.length||bars.some((x,i)=>["time","open","high","low","close","volume","forming"].some(k=>x[k]!==had[i]?.[k]));
-  if(!keep){
-   benchmarkInfo={feed:true};loadedKey=key;
-   const url=new URL(location.href);url.searchParams.set("period","feed");url.searchParams.set("interval",String(frame));history.replaceState(null,"",url);
-   const started=!!chart;startChart();if(started)makeSeries();
-   $("benchmarkCredit").href=m.root+"/docs/";$("benchmarkCredit").textContent="biquote ↗";$("benchmarkCredit").title="Biquote OTC mid-price feed; history can use its published backfill sources";
-   nativeControls(true);applySettings();
-  }
-  const ts=chart.timeScale(),range=keep?ts.getVisibleLogicalRange():null;
-  if(changed){
-   const shift=range&&had?(range.to>=had.length-2?lowerBound(bars,bars.at(-1).time)-had.length+1:lowerBound(bars,had[0].time)-lowerBound(had,bars[0].time)):0;
-   data=bars;barHover=null;pinnedBar=null;updateChart(range?{from:range.from+shift,to:range.to+shift}:null);
-   if(!range)ts.setVisibleLogicalRange({from:Math.max(0,data.length-100),to:data.length+5});
-  }else if(goldFeedQuote)$("quote").textContent="$"+price(goldFeedQuote.price);
-  $("tradeInfo").textContent=(bars.at(-1).forming&&state==="updating"?"Current candle forming":"Latest candle "+chartTime(bars.at(-1).time))+updated+" · Indicative broker feed";
-  setLiveStatus(state==="updating"?"goldFeed":state==="closed"?"goldClosed":"goldFeedStale");
-  message("");if(manual||!keep)notify("Gold OHLC · biquote OTC mid-price");
+  if(!isCurrent())return;
+  const startedAt=Date.now();
+  const full=!keep||(startedAt-goldFeedBackfill>60000&&startedAt/1000-data.at(-1).time>frame*60*10&&goldFeedQuote?.state!=="closed");
+  if(full)goldFeedBackfill=startedAt;
+  const request=m.requestGoldFeed(frame,{signal:ctrl.signal,full,barsTimeout:keep?8500:18000});
+  let candlesDone=false,valid=false,quoteDone=false,currentQuote=null;
+  const updateFeedStatus=()=>{
+   const state=currentQuote?.state,before=liveState;
+   const updated=goldFeedQuote?" · "+(state==="updating"?"Quote ":"Last quote ")+istTime(goldFeedQuote.time,true)+" IST":"";
+   if(!candlesDone){
+    if(!keep&&state==="updating")setLiveStatus("goldQuoteLoading");
+    if(!keep&&updated)$("tradeInfo").textContent="Loading candles"+updated+" · Indicative broker feed";
+    return;
+   }
+   if(!valid){
+    setLiveStatus(state==="updating"?"goldQuoteOnly":keep&&state==="closed"?"goldClosed":"goldFeedStale");
+    $("tradeInfo").textContent=(keep?"Showing last loaded candles":"Candles unavailable")+updated+" · Indicative broker feed";
+    if(!keep)message("Gold candles unavailable. Ledger will retry, or you can switch to Archive or Live sampled.");
+    if(quoteDone&&(manual||before!==liveState))notify(state==="updating"?"Gold quote is updating · candle feed unavailable":"Gold candle update unavailable");
+    return;
+   }
+   $("tradeInfo").textContent=(data.at(-1).forming&&state==="updating"?"Current candle forming":"Latest candle "+chartTime(data.at(-1).time))+updated+" · Indicative broker feed";
+   if(quoteDone)setLiveStatus(state==="updating"?"goldFeed":state==="closed"?"goldClosed":"goldFeedStale");
+   else if(!keep)setLiveStatus("goldCheckingQuote");
+  };
+  await Promise.all([request.bars.then(incoming=>{
+   if(!isCurrent())return;
+   candlesDone=true;
+   valid=!!incoming?.length&&(!keep||incoming.at(-1).time>=data.at(-1).time);
+   if(!valid){updateFeedStatus();return}
+   const bars=m.mergeFeedBars(keep?data:[],incoming);
+   const had=keep?data:null;
+   const changed=!had||had.length!==bars.length||bars.some((x,i)=>["time","open","high","low","close","volume","forming"].some(k=>x[k]!==had[i]?.[k]));
+   if(!keep){
+    benchmarkInfo={feed:true};loadedKey=key;
+    const url=new URL(location.href);url.searchParams.set("period","feed");url.searchParams.set("interval",String(frame));history.replaceState(null,"",url);
+    const started=!!chart;startChart();if(started)makeSeries();
+    $("benchmarkCredit").href=m.root+"/docs/";$("benchmarkCredit").textContent="biquote ↗";$("benchmarkCredit").title="Biquote OTC mid-price feed; history can use its published backfill sources";
+    nativeControls(true);applySettings();
+   }
+   const ts=chart.timeScale(),range=keep?ts.getVisibleLogicalRange():null;
+   if(changed){
+    const shift=range&&had?(range.to>=had.length-2?lowerBound(bars,bars.at(-1).time)-had.length+1:lowerBound(bars,had[0].time)-lowerBound(had,bars[0].time)):0;
+    data=bars;barHover=null;pinnedBar=null;updateChart(range?{from:range.from+shift,to:range.to+shift}:null);
+    if(!range)ts.setVisibleLogicalRange({from:Math.max(0,data.length-100),to:data.length+5});
+   }else if(goldFeedQuote)$("quote").textContent="$"+price(goldFeedQuote.price);
+   message("");updateFeedStatus();
+   if(manual||!keep)notify("Gold OHLC · biquote OTC mid-price");
+  }),request.quote.then(quote=>{
+   if(!isCurrent())return;
+   quoteDone=true;
+   currentQuote=quote&&quote.time>=(goldFeedQuote?.time||0)?quote:null;
+   if(currentQuote){goldFeedQuote=currentQuote;$("quote").textContent="$"+price(currentQuote.price)}
+   updateFeedStatus();
+  })]);
  }catch{
+  ctrl.abort();
   if(ticket===seq){
    setLiveStatus("goldFeedStale");
    if(!keep)message("Gold feed unavailable. Ledger will retry. You can switch to Archive or Live sampled.");

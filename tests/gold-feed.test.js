@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {normalizeBars,normalizeQuote,mergeFeedBars,readGoldFeed} from "../assets/gold-feed.js";
+import {normalizeBars,normalizeQuote,mergeFeedBars,requestGoldFeed} from "../assets/gold-feed.js";
+const readGoldFeed=async(...args)=>{const req=requestGoldFeed(...args);return {bars:await req.bars,quote:await req.quote}};
 const t=1795609800,stamp=v=>new Date(v*1000).toISOString();
 const raw=(time,more={})=>({openTime:stamp(time),open:3500,high:3520,low:3490,close:3510,tickVolume:6,isOpen:false,...more});
 test("provider OHLC sorts, rejects invalid extrema, and preserves gaps",()=>{

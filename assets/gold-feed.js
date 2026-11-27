@@ -23,13 +23,18 @@ export function normalizeQuote(p,now=Math.floor(Date.now()/1000)){
 export function mergeFeedBars(previous,incoming){
  return [...new Map([...previous,...incoming].map(b=>[b.time,b])).values()].sort((a,b)=>a.time-b.time).slice(-maxBars);
 }
-export async function readGoldFeed(minutes,{signal,full}){
+// Separate the two time budgets so a slow quote never blocks the candle renderer.
+export function requestGoldFeed(minutes,{signal,full,barsTimeout=8500,quoteTimeout=8500}){
  const interval=periodByMinutes[minutes];if(!interval)throw Error("Unsupported Gold timeframe");
- const get=async(url)=>{
-  const r=await fetch(root+url,{signal,credentials:"omit",cache:"no-cache",referrerPolicy:"no-referrer"});
+ const get=async(url,timeout)=>{
+  const requestSignal=AbortSignal.any([signal,AbortSignal.timeout(timeout)]);
+  const r=await fetch(root+url,{signal:requestSignal,credentials:"omit",cache:"no-cache",referrerPolicy:"no-referrer"});
   if(!r.ok)throw Error("Gold provider unavailable");
   return r.json();
  };
- const [candles,tick]=await Promise.allSettled([get("/api/XAUUSD/ohlc?"+new URLSearchParams({interval,limit:full?String(maxBars):"12"})).then(p=>normalizeBars(p,minutes)),get("/api/XAUUSD")]);
- return {bars:candles.status==="fulfilled"?candles.value:null,quote:tick.status==="fulfilled"?normalizeQuote(tick.value):null};
+ return {
+  bars:get("/api/XAUUSD/ohlc?"+new URLSearchParams({interval,limit:full?String(maxBars):"12"}),barsTimeout)
+   .then(p=>normalizeBars(p,minutes)).catch(()=>null),
+  quote:get("/api/XAUUSD",quoteTimeout).then(p=>normalizeQuote(p)).catch(()=>null)
+ };
 }
